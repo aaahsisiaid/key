@@ -1,3 +1,24 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PCフリック入力</title>
+</head>
+<body>
+
+<h2>スマホ → PC フリック入力</h2>
+
+<input
+  id="input"
+  type="text"
+  inputmode="kana"
+  style="font-size:24px; width:100%;"
+  placeholder="ここに入力"
+/>
+
+<!-- ↑ inputが先に必要 -->
+
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/12.8.0/firebase-app.js";
   import { getDatabase, ref, set } from "https://www.gstatic.com/firebasejs/12.8.0/firebase-database.js";
@@ -23,9 +44,12 @@
     const text = input.value;
 
     set(ref(db, `rooms/${roomId}`), {
-      text: text,
+      text,
       len: text.length,
       updatedAt: Date.now()
     });
   });
 </script>
+
+</body>
+</html>
