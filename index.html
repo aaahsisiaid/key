@@ -1,47 +1,99 @@
 <!DOCTYPE html>
-<html>
+<html lang="ja">
 <head>
-<meta charset="utf-8">
-<title>Phone Sender</title>
-<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
+<meta charset="UTF-8">
+<title>Remote Keyboard</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<style>
+body {
+  background:#111; color:#eee; font-family:sans-serif; padding:10px;
+}
+input, textarea, button {
+  width:100%; margin:6px 0; padding:10px; font-size:16px;
+}
+button { background:#333; color:#fff; border:none; }
+pre {
+  background:#000; padding:10px; height:180px; overflow:auto;
+}
+</style>
 </head>
 <body>
 
-<h2>📱 スマホ側</h2>
+<h2>📱 Remote Keyboard</h2>
 
 <input id="room" placeholder="Room ID">
-<button onclick="send()">送信</button>
+<textarea id="text" placeholder="ここに入力（フリック可）"></textarea>
+
+<button id="send">送信</button>
+<button id="ime">全角 / 半角 切替</button>
 
 <pre id="log"></pre>
 
-<script>
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/12.8.0/firebase-app.js";
+import { getDatabase, ref, set, onValue } from
+  "https://www.gstatic.com/firebasejs/12.8.0/firebase-database.js";
+
+/* Firebase設定 */
 const firebaseConfig = {
-  databaseURL: "https://YOUR_PROJECT.firebaseio.com"
+  apiKey: "AIzaSyB3QCa8l8X9LQwZVyrYlOw4bQeP1C0QMnU",
+  authDomain: "key-board-ee542.firebaseapp.com",
+  databaseURL: "https://key-board-ee542-default-rtdb.firebaseio.com",
+  projectId: "key-board-ee542",
+  storageBucket: "key-board-ee542.firebasestorage.app",
+  messagingSenderId: "772948787294",
+  appId: "1:772948787294:web:59e38171fa37398b4834cf"
 };
-firebase.initializeApp(firebaseConfig);
-const db = firebase.database();
 
-function log(t){
-  document.getElementById("log").textContent += t + "\n";
+const app = initializeApp(firebaseConfig);
+const db = getDatabase(app);
+
+const logBox = document.getElementById("log");
+const roomInput = document.getElementById("room");
+const textInput = document.getElementById("text");
+
+function log(msg){
+  logBox.textContent += `[${new Date().toLocaleTimeString()}] ${msg}\n`;
+  logBox.scrollTop = logBox.scrollHeight;
 }
 
-function send(){
-  const room = document.getElementById("room").value;
-  const base = db.ref("rooms/"+room);
+/* 送信（1文字ずつ） */
+document.getElementById("send").onclick = async () => {
+  const room = roomInput.value.trim();
+  if(!room){ alert("Room ID 入れて"); return; }
 
-  base.child("status/phone").set("sending");
-  log("送信中…");
-
-  base.child("logs").push({
-    from: "phone",
-    msg: "data sent",
-    timestamp: Date.now()
-  });
-
-  base.child("status/phone").set("done");
+  const text = textInput.value;
+  for(const ch of text){
+    await set(ref(db, `rooms/${room}/input`), {
+      type: "char",
+      key: ch,
+      time: Date.now()
+    });
+  }
   log("送信完了");
-}
+  textInput.value = "";
+};
+
+/* 全角 / 半角 */
+document.getElementById("ime").onclick = async () => {
+  const room = roomInput.value.trim();
+  if(!room){ alert("Room ID 入れて"); return; }
+
+  await set(ref(db, `rooms/${room}/input`), {
+    type: "ime",
+    time: Date.now()
+  });
+  log("IME切替送信");
+};
+
+/* PC側からの受信ログ（任意） */
+onValue(ref(db, "rooms"), snap => {
+  if(snap.exists()){
+    log("PC接続あり");
+  }
+});
 </script>
+
 </body>
 </html>
