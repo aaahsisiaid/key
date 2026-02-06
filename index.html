@@ -4,18 +4,13 @@
 <meta charset="UTF-8">
 <title>Remote Keyboard</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
 <style>
-body {
-  background:#111; color:#eee; font-family:sans-serif; padding:10px;
-}
-input, textarea, button {
+body { background:#111; color:#eee; font-family:sans-serif; padding:10px }
+textarea, input, button, select {
   width:100%; margin:6px 0; padding:10px; font-size:16px;
 }
-button { background:#333; color:#fff; border:none; }
-pre {
-  background:#000; padding:10px; height:180px; overflow:auto;
-}
+button { background:#333; color:#fff; border:none }
+pre { background:#000; height:160px; overflow:auto; padding:10px }
 </style>
 </head>
 <body>
@@ -23,26 +18,31 @@ pre {
 <h2>📱 Remote Keyboard</h2>
 
 <input id="room" placeholder="Room ID">
-<textarea id="text" placeholder="ここに入力（フリック可）"></textarea>
+
+<select id="mode">
+  <option value="realtime">リアルタイム入力</option>
+  <option value="enter">Enterで送信</option>
+</select>
+
+<textarea id="text" placeholder="ここに入力"></textarea>
 
 <button id="send">送信</button>
-<button id="ime">全角 / 半角 切替</button>
+<button id="enter">Enter（改行）</button>
+<button id="back">削除</button>
+<button id="ime">全角 / 半角</button>
 
 <pre id="log"></pre>
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.8.0/firebase-app.js";
-import { getDatabase, ref, set, onValue } from
+import { getDatabase, ref, set } from
   "https://www.gstatic.com/firebasejs/12.8.0/firebase-database.js";
 
-/* Firebase設定 */
 const firebaseConfig = {
   apiKey: "AIzaSyB3QCa8l8X9LQwZVyrYlOw4bQeP1C0QMnU",
   authDomain: "key-board-ee542.firebaseapp.com",
   databaseURL: "https://key-board-ee542-default-rtdb.firebaseio.com",
   projectId: "key-board-ee542",
-  storageBucket: "key-board-ee542.firebasestorage.app",
-  messagingSenderId: "772948787294",
   appId: "1:772948787294:web:59e38171fa37398b4834cf"
 };
 
@@ -50,50 +50,52 @@ const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 
 const logBox = document.getElementById("log");
+const text = document.getElementById("text");
+const mode = document.getElementById("mode");
 const roomInput = document.getElementById("room");
-const textInput = document.getElementById("text");
 
-function log(msg){
-  logBox.textContent += `[${new Date().toLocaleTimeString()}] ${msg}\n`;
+function log(m){
+  logBox.textContent += m + "\n";
   logBox.scrollTop = logBox.scrollHeight;
 }
 
-/* 送信（1文字ずつ） */
-document.getElementById("send").onclick = async () => {
+async function send(data){
   const room = roomInput.value.trim();
-  if(!room){ alert("Room ID 入れて"); return; }
+  if(!room) return alert("Room ID 入れて");
+  await set(ref(db, `rooms/${room}/input`), data);
+}
 
-  const text = textInput.value;
-  for(const ch of text){
-    await set(ref(db, `rooms/${room}/input`), {
-      type: "char",
-      key: ch,
-      time: Date.now()
-    });
-  }
-  log("送信完了");
-  textInput.value = "";
-};
-
-/* 全角 / 半角 */
-document.getElementById("ime").onclick = async () => {
-  const room = roomInput.value.trim();
-  if(!room){ alert("Room ID 入れて"); return; }
-
-  await set(ref(db, `rooms/${room}/input`), {
-    type: "ime",
-    time: Date.now()
-  });
-  log("IME切替送信");
-};
-
-/* PC側からの受信ログ（任意） */
-onValue(ref(db, "rooms"), snap => {
-  if(snap.exists()){
-    log("PC接続あり");
+text.addEventListener("input", async e => {
+  if(mode.value !== "realtime") return;
+  const v = e.data;
+  if(v){
+    await send({ type:"char", key:v, time:Date.now() });
+    log("送信: " + v);
   }
 });
-</script>
 
+document.getElementById("send").onclick = async () => {
+  for(const ch of text.value){
+    await send({ type:"char", key:ch, time:Date.now() });
+  }
+  text.value="";
+  log("まとめ送信完了");
+};
+
+document.getElementById("enter").onclick = async () => {
+  await send({ type:"enter", time:Date.now() });
+  log("Enter");
+};
+
+document.getElementById("back").onclick = async () => {
+  await send({ type:"backspace", time:Date.now() });
+  log("Backspace");
+};
+
+document.getElementById("ime").onclick = async () => {
+  await send({ type:"ime", time:Date.now() });
+  log("IME切替");
+};
+</script>
 </body>
 </html>
