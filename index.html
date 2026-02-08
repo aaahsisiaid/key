@@ -1,245 +1,835 @@
-use std::{thread, time::Duration, env, sync::Arc, sync::atomic::{AtomicBool, Ordering}};
-use reqwest::blocking::Client;
-use serde::{Deserialize, Serialize};
-use enigo::{Enigo, Key, Keyboard, Mouse, Button, Direction, Settings, Axis};
-use chrono::Local;
-
-const DEFAULT_FIREBASE_URL: &str = "https://key-board-ee542-default-rtdb.firebaseio.com";
-const DEFAULT_ROOM_ID: &str = "test";
-const POLL_INTERVAL_MS: u64 = 30;
-
-#[derive(Deserialize, Debug)]
-struct InputData {
-    #[serde(rename = "type")]
-    kind: String,
-    key: Option<String>,
-    time: u64,
-    text: Option<String>,
-    x: Option<i32>,
-    y: Option<i32>,
-    dx: Option<i32>,
-    dy: Option<i32>,
-    delta: Option<i32>,
-    count: Option<u32>,
-    button: Option<String>,
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>📱 Remote Keyboard Pro</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+  color: #eee;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  padding: 16px;
+  min-height: 100vh;
+  user-select: none;
+}
+.container {
+  max-width: 800px;
+  margin: 0 auto;
+}
+h1 {
+  text-align: center;
+  margin-bottom: 20px;
+  font-size: 28px;
+  background: linear-gradient(90deg, #4facfe 0%, #00f2fe 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+.card {
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 12px;
+  padding: 16px;
+  margin-bottom: 16px;
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+input, textarea, button, select {
+  width: 100%;
+  margin: 8px 0;
+  padding: 12px;
+  font-size: 16px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+input, textarea, select {
+  background: rgba(255, 255, 255, 0.1);
+  color: #eee;
+}
+input:focus, textarea:focus, select:focus {
+  outline: none;
+  border-color: #4facfe;
+  box-shadow: 0 0 0 3px rgba(79, 172, 254, 0.2);
+}
+button {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: #fff;
+  border: none;
+  cursor: pointer;
+  transition: all 0.3s;
+  font-weight: 600;
+}
+button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+}
+button:active {
+  transform: translateY(0);
+}
+button.primary { background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); }
+button.danger { background: linear-gradient(135deg, #fa709a 0%, #fee140 100%); }
+button.success { background: linear-gradient(135deg, #30cfd0 0%, #330867 100%); }
+button.small {
+  width: calc(50% - 4px);
+  display: inline-block;
+  padding: 10px;
+  font-size: 14px;
+}
+button.small:nth-child(even) { margin-left: 8px; }
+.grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+.grid button {
+  width: 100%;
+  margin: 0;
+}
+.status {
+  padding: 12px;
+  border-radius: 8px;
+  margin: 8px 0;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.status.online {
+  background: linear-gradient(135deg, rgba(0, 255, 127, 0.2) 0%, rgba(0, 200, 100, 0.2) 100%);
+  border: 1px solid rgba(0, 255, 127, 0.3);
+}
+.status.offline {
+  background: linear-gradient(135deg, rgba(255, 100, 100, 0.2) 0%, rgba(200, 0, 0, 0.2) 100%);
+  border: 1px solid rgba(255, 100, 100, 0.3);
+}
+.status-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #0f0;
+  animation: pulse 2s infinite;
+}
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+pre {
+  background: #000;
+  height: 200px;
+  overflow-y: auto;
+  padding: 12px;
+  border-radius: 8px;
+  font-size: 12px;
+  line-height: 1.6;
+  font-family: 'Courier New', monospace;
+}
+.stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  margin: 12px 0;
+}
+.stat-box {
+  background: rgba(79, 172, 254, 0.1);
+  padding: 12px;
+  border-radius: 8px;
+  text-align: center;
+}
+.stat-value {
+  font-size: 24px;
+  font-weight: bold;
+  color: #4facfe;
+}
+.stat-label {
+  font-size: 12px;
+  opacity: 0.7;
+  margin-top: 4px;
+}
+.tab-container {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+.tab {
+  flex: 1;
+  padding: 12px;
+  background: rgba(255, 255, 255, 0.05);
+  border: none;
+  border-radius: 8px;
+  color: #eee;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+.tab.active {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+.tab-content {
+  display: none;
+}
+.tab-content.active {
+  display: block;
+}
+.shortcuts {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
 }
 
-#[derive(Serialize)]
-struct StatusData {
-    online: bool,
-    last_seen: u64,
-    version: String,
+/* タッチパッド専用スタイル */
+.touchpad {
+  width: 100%;
+  height: 400px;
+  background: linear-gradient(135deg, rgba(30, 30, 50, 0.8) 0%, rgba(20, 20, 40, 0.8) 100%);
+  border: 2px solid rgba(79, 172, 254, 0.3);
+  border-radius: 16px;
+  position: relative;
+  overflow: hidden;
+  cursor: none;
+  touch-action: none;
+  margin: 16px 0;
+}
+.touchpad.active {
+  border-color: #4facfe;
+  box-shadow: 0 0 20px rgba(79, 172, 254, 0.5);
+}
+.touchpad-cursor {
+  position: absolute;
+  width: 20px;
+  height: 20px;
+  background: radial-gradient(circle, #4facfe 0%, #00f2fe 100%);
+  border-radius: 50%;
+  pointer-events: none;
+  transform: translate(-50%, -50%);
+  opacity: 0.8;
+  box-shadow: 0 0 10px rgba(79, 172, 254, 0.8);
+  transition: opacity 0.1s;
+}
+.touchpad-cursor.hidden {
+  opacity: 0;
+}
+.touchpad-info {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  background: rgba(0, 0, 0, 0.7);
+  padding: 8px 12px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-family: monospace;
+  pointer-events: none;
+}
+.mouse-buttons {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 8px;
+  margin-top: 8px;
+}
+.mouse-buttons button {
+  margin: 0;
+  padding: 16px;
+  font-size: 18px;
+}
+.sensitivity-control {
+  margin: 12px 0;
+}
+.sensitivity-control label {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 14px;
+}
+.sensitivity-control input[type="range"] {
+  margin: 0;
+}
+.sensitivity-value {
+  display: inline-block;
+  margin-left: 12px;
+  font-weight: bold;
+  color: #4facfe;
+}
+.scroll-zone {
+  position: absolute;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  width: 60px;
+  background: linear-gradient(90deg, transparent 0%, rgba(79, 172, 254, 0.1) 100%);
+  border-left: 2px dashed rgba(79, 172, 254, 0.3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  opacity: 0.5;
+  pointer-events: none;
+}
+.gesture-hint {
+  position: absolute;
+  bottom: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(0, 0, 0, 0.7);
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-size: 11px;
+  opacity: 0.7;
+  pointer-events: none;
+}
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>📱 Remote Keyboard Pro v2.0</h1>
+
+  <div class="card">
+    <input id="room" placeholder="Room ID" value="test">
+    <div id="status" class="status offline">
+      <div class="status-dot"></div>
+      <span>オフライン</span>
+    </div>
+  </div>
+
+  <div class="stats">
+    <div class="stat-box">
+      <div class="stat-value" id="sent-count">0</div>
+      <div class="stat-label">送信数</div>
+    </div>
+    <div class="stat-box">
+      <div class="stat-value" id="char-count">0</div>
+      <div class="stat-label">文字数</div>
+    </div>
+    <div class="stat-box">
+      <div class="stat-value" id="uptime">00:00</div>
+      <div class="stat-label">接続時間</div>
+    </div>
+  </div>
+
+  <div class="tab-container">
+    <button class="tab active" data-tab="input">入力</button>
+    <button class="tab" data-tab="shortcuts">ショートカット</button>
+    <button class="tab" data-tab="touchpad">タッチパッド</button>
+    <button class="tab" data-tab="advanced">高度</button>
+  </div>
+
+  <!-- 入力タブ -->
+  <div class="tab-content active" id="input-tab">
+    <div class="card">
+      <select id="mode">
+        <option value="realtime">リアルタイム入力</option>
+        <option value="enter">Enterで送信</option>
+      </select>
+      <textarea id="text" rows="5" placeholder="ここに入力してください"></textarea>
+      <button id="send" class="primary">📤 送信</button>
+    </div>
+
+    <div class="card">
+      <div class="grid">
+        <button id="enter">⏎ Enter</button>
+        <button id="tab">⇥ Tab</button>
+        <button id="escape">⎋ Esc</button>
+        <button id="back" class="danger">⌫ Back</button>
+        <button id="delete" class="danger">⌦ Del</button>
+        <button id="ime">🌐 IME</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3 style="margin-bottom: 12px;">矢印キー</h3>
+      <div class="grid">
+        <div></div>
+        <button id="arrow-up">↑</button>
+        <div></div>
+        <button id="arrow-left">←</button>
+        <button id="arrow-down">↓</button>
+        <button id="arrow-right">→</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ショートカットタブ -->
+  <div class="tab-content" id="shortcuts-tab">
+    <div class="card">
+      <div class="shortcuts">
+        <button id="ctrl-c">📋 コピー (Ctrl+C)</button>
+        <button id="ctrl-v">📄 貼付 (Ctrl+V)</button>
+        <button id="ctrl-x">✂️ 切取 (Ctrl+X)</button>
+        <button id="ctrl-z">↩️ 戻す (Ctrl+Z)</button>
+        <button id="ctrl-a">🔘 全選択 (Ctrl+A)</button>
+        <button id="clear" class="danger">🗑️ 全削除</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- タッチパッドタブ -->
+  <div class="tab-content" id="touchpad-tab">
+    <div class="card">
+      <h3 style="margin-bottom: 12px;">🖱️ タッチパッド</h3>
+      
+      <div class="sensitivity-control">
+        <label>
+          感度: <span class="sensitivity-value" id="sensitivity-value">1.0x</span>
+        </label>
+        <input type="range" id="sensitivity" min="0.1" max="5" step="0.1" value="1.0">
+      </div>
+
+      <div class="touchpad" id="touchpad">
+        <div class="touchpad-cursor hidden" id="cursor"></div>
+        <div class="touchpad-info" id="touchpad-info">
+          移動: 0, 0<br>
+          速度: 0
+        </div>
+        <div class="scroll-zone">
+          <span style="writing-mode: vertical-rl;">スクロール</span>
+        </div>
+        <div class="gesture-hint">
+          スワイプで移動 | 2本指でスクロール | タップでクリック
+        </div>
+      </div>
+
+      <div class="mouse-buttons">
+        <button id="left-click" class="success">👆 左クリック</button>
+        <button id="middle-click">🖱️ 中央</button>
+        <button id="right-click">👆 右クリック</button>
+      </div>
+
+      <div class="mouse-buttons" style="grid-template-columns: 1fr 1fr; margin-top: 8px;">
+        <button id="double-click">⚡ ダブルクリック</button>
+        <button id="scroll-mode">📜 スクロールモード</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 高度タブ -->
+  <div class="tab-content" id="advanced-tab">
+    <div class="card">
+      <h3 style="margin-bottom: 12px;">バッチ処理</h3>
+      <input type="number" id="repeat-count" placeholder="繰り返し回数" value="1" min="1" max="100">
+      <input type="text" id="repeat-text" placeholder="繰り返すテキスト">
+      <button id="batch-send" class="primary">🔄 バッチ送信</button>
+    </div>
+
+    <div class="card">
+      <h3 style="margin-bottom: 12px;">クイックコマンド</h3>
+      <button id="multi-back">⌫ × 10 削除</button>
+      <button id="multi-enter">⏎ × 3 改行</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <pre id="log"></pre>
+    <button id="clear-log" class="small danger">ログクリア</button>
+    <button id="export-log" class="small">ログ出力</button>
+  </div>
+</div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+import { getDatabase, ref, set, onValue } from
+  "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyB3QCa8l8X9LQwZVyrYlOw4bQeP1C0QMnU",
+  authDomain: "key-board-ee542.firebaseapp.com",
+  databaseURL: "https://key-board-ee542-default-rtdb.firebaseio.com",
+  projectId: "key-board-ee542",
+  appId: "1:772948787294:web:59e38171fa37398b4834cf"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getDatabase(app);
+
+// DOM要素
+const logBox = document.getElementById("log");
+const text = document.getElementById("text");
+const mode = document.getElementById("mode");
+const roomInput = document.getElementById("room");
+const statusEl = document.getElementById("status");
+const sentCountEl = document.getElementById("sent-count");
+const charCountEl = document.getElementById("char-count");
+const uptimeEl = document.getElementById("uptime");
+
+// タッチパッド要素
+const touchpad = document.getElementById("touchpad");
+const cursor = document.getElementById("cursor");
+const touchpadInfo = document.getElementById("touchpad-info");
+const sensitivitySlider = document.getElementById("sensitivity");
+const sensitivityValue = document.getElementById("sensitivity-value");
+
+// 統計
+let sentCount = 0;
+let charCount = 0;
+let startTime = Date.now();
+
+// タッチパッド状態
+let isScrollMode = false;
+let lastTouchX = 0;
+let lastTouchY = 0;
+let lastTouchTime = 0;
+let touchStartTime = 0;
+let velocity = 0;
+let lastTouches = 0;
+
+// タブ切替
+document.querySelectorAll('.tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+    tab.classList.add('active');
+    document.getElementById(tab.dataset.tab + '-tab').classList.add('active');
+  });
+});
+
+// ログ関数
+function log(message) {
+  const timestamp = new Date().toLocaleTimeString();
+  logBox.textContent += `[${timestamp}] ${message}\n`;
+  logBox.scrollTop = logBox.scrollHeight;
 }
 
-fn main() {
-    println!("🎹 Remote Keyboard Pro 起動");
+// ステータス監視
+function watchStatus() {
+  const room = roomInput.value.trim();
+  if (!room) return;
+
+  const statusRef = ref(db, `rooms/${room}/status`);
+  onValue(statusRef, (snapshot) => {
+    const data = snapshot.val();
+    if (data && data.online) {
+      const timeDiff = Date.now() - data.last_seen;
+      const isOnline = timeDiff < 10000;
+      
+      statusEl.className = `status ${isOnline ? 'online' : 'offline'}`;
+      statusEl.innerHTML = `
+        <div class="status-dot"></div>
+        <span>${isOnline ? 'オンライン' : 'オフライン'} | v${data.version || '不明'}</span>
+      `;
+    }
+  });
+}
+
+// 送信関数
+async function send(data) {
+  const room = roomInput.value.trim();
+  if (!room) {
+    alert("⚠️ Room ID を入力してください");
+    return false;
+  }
+
+  try {
+    await set(ref(db, `rooms/${room}/input`), data);
+    sentCount++;
+    sentCountEl.textContent = sentCount;
+    return true;
+  } catch (error) {
+    console.error("送信エラー:", error);
+    log(`❌ エラー: ${error.message}`);
+    return false;
+  }
+}
+
+// タッチパッド機能
+let accumulatedDeltaX = 0;
+let accumulatedDeltaY = 0;
+
+sensitivitySlider.oninput = (e) => {
+  sensitivityValue.textContent = parseFloat(e.target.value).toFixed(1) + 'x';
+};
+
+touchpad.addEventListener('touchstart', (e) => {
+  e.preventDefault();
+  touchStartTime = Date.now();
+  lastTouches = e.touches.length;
+  
+  if (e.touches.length === 1) {
+    const touch = e.touches[0];
+    const rect = touchpad.getBoundingClientRect();
+    lastTouchX = touch.clientX - rect.left;
+    lastTouchY = touch.clientY - rect.top;
     
-    let firebase_url = env::var("FIREBASE_URL")
-        .unwrap_or_else(|_| DEFAULT_FIREBASE_URL.to_string());
-    let room_id = env::var("ROOM_ID")
-        .unwrap_or_else(|_| DEFAULT_ROOM_ID.to_string());
+    cursor.style.left = lastTouchX + 'px';
+    cursor.style.top = lastTouchY + 'px';
+    cursor.classList.remove('hidden');
+    touchpad.classList.add('active');
+  }
+});
 
-    let client = Client::builder()
-        .timeout(Duration::from_secs(5))
-        .build()
-        .expect("HTTPクライアント初期化失敗");
+touchpad.addEventListener('touchmove', (e) => {
+  e.preventDefault();
+  
+  const sensitivity = parseFloat(sensitivitySlider.value);
+  const rect = touchpad.getBoundingClientRect();
+  
+  if (e.touches.length === 1 && !isScrollMode) {
+    // 1本指: マウス移動
+    const touch = e.touches[0];
+    const currentX = touch.clientX - rect.left;
+    const currentY = touch.clientY - rect.top;
+    
+    const deltaX = (currentX - lastTouchX) * sensitivity;
+    const deltaY = (currentY - lastTouchY) * sensitivity;
+    
+    accumulatedDeltaX += deltaX;
+    accumulatedDeltaY += deltaY;
+    
+    // 一定量溜まったら送信
+    if (Math.abs(accumulatedDeltaX) >= 5 || Math.abs(accumulatedDeltaY) >= 5) {
+      const moveX = Math.round(accumulatedDeltaX);
+      const moveY = Math.round(accumulatedDeltaY);
+      
+      send({
+        type: "mouse_move_relative",
+        dx: moveX,
+        dy: moveY,
+        time: Date.now()
+      });
+      
+      accumulatedDeltaX = 0;
+      accumulatedDeltaY = 0;
+    }
+    
+    const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
+    velocity = distance;
+    
+    cursor.style.left = currentX + 'px';
+    cursor.style.top = currentY + 'px';
+    
+    touchpadInfo.innerHTML = `
+      移動: ${Math.round(deltaX)}, ${Math.round(deltaY)}<br>
+      速度: ${Math.round(velocity)}
+    `;
+    
+    lastTouchX = currentX;
+    lastTouchY = currentY;
+    lastTouchTime = Date.now();
+    
+  } else if (e.touches.length === 2 || isScrollMode) {
+    // 2本指 or スクロールモード: スクロール
+    const touch = e.touches[0];
+    const currentY = touch.clientY - rect.top;
+    const deltaY = currentY - lastTouchY;
+    
+    if (Math.abs(deltaY) > 2) {
+      send({
+        type: "mouse_scroll",
+        delta: -Math.round(deltaY / 5),
+        time: Date.now()
+      });
+      
+      lastTouchY = currentY;
+    }
+  }
+});
 
-    let settings = Settings::default();
-    let mut enigo = Enigo::new(&settings).expect("Enigo初期化失敗");
-    let mut last_time = 0u64;
-    let running = Arc::new(AtomicBool::new(true));
-    let r = running.clone();
-
-    ctrlc::set_handler(move || {
-        println!("\n\n終了シグナル受信...");
-        r.store(false, Ordering::SeqCst);
-    }).expect("Ctrl+Cハンドラー設定失敗");
-
-    println!("Room: {}", room_id);
-    println!("Version: 2.0");
-    println!("ポーリング開始...\n");
-
-    let status_client = client.clone();
-    let status_url = format!("{}/rooms/{}/status.json", firebase_url, room_id);
-    thread::spawn(move || {
-        loop {
-            let status = StatusData {
-                online: true,
-                last_seen: current_timestamp(),
-                version: "2.0".to_string(),
-            };
-            let _ = status_client.put(&status_url).json(&status).send();
-            thread::sleep(Duration::from_secs(5));
-        }
+touchpad.addEventListener('touchend', (e) => {
+  e.preventDefault();
+  
+  const touchDuration = Date.now() - touchStartTime;
+  
+  // タップ検出（短時間タッチ）
+  if (touchDuration < 200 && velocity < 10 && lastTouches === 1) {
+    send({
+      type: "mouse_click",
+      button: "left",
+      time: Date.now()
     });
+    log("タップ → 左クリック");
+  }
+  
+  setTimeout(() => {
+    cursor.classList.add('hidden');
+    touchpad.classList.remove('active');
+    velocity = 0;
+    accumulatedDeltaX = 0;
+    accumulatedDeltaY = 0;
+  }, 100);
+});
 
-    let mut command_count = 0u32;
+// マウス操作（PCの場合）
+touchpad.addEventListener('mousedown', (e) => {
+  const rect = touchpad.getBoundingClientRect();
+  lastTouchX = e.clientX - rect.left;
+  lastTouchY = e.clientY - rect.top;
+  
+  cursor.style.left = lastTouchX + 'px';
+  cursor.style.top = lastTouchY + 'px';
+  cursor.classList.remove('hidden');
+  touchpad.classList.add('active');
+});
 
-    while running.load(Ordering::SeqCst) {
-        let url = format!("{}/rooms/{}/input.json", firebase_url, room_id);
-        
-        match client.get(&url).send() {
-            Ok(resp) => {
-                match resp.text() {
-                    Ok(text) => {
-                        if text != "null" && !text.is_empty() {
-                            match serde_json::from_str::<InputData>(&text) {
-                                Ok(data) => {
-                                    if data.time > last_time {
-                                        last_time = data.time;
-                                        handle_input(&mut enigo, &data);
-                                        command_count += 1;
-                                    }
-                                }
-                                Err(e) => eprintln!("[{}] JSON解析エラー: {}", timestamp(), e),
-                            }
-                        }
-                    }
-                    Err(e) => eprintln!("[{}] レスポンス読み取りエラー: {}", timestamp(), e),
-                }
-            }
-            Err(e) => eprintln!("[{}] リクエストエラー: {}", timestamp(), e),
-        }
+touchpad.addEventListener('mousemove', (e) => {
+  if (e.buttons === 1) {
+    const rect = touchpad.getBoundingClientRect();
+    const currentX = e.clientX - rect.left;
+    const currentY = e.clientY - rect.top;
+    
+    const sensitivity = parseFloat(sensitivitySlider.value);
+    const deltaX = (currentX - lastTouchX) * sensitivity;
+    const deltaY = (currentY - lastTouchY) * sensitivity;
+    
+    send({
+      type: "mouse_move_relative",
+      dx: Math.round(deltaX),
+      dy: Math.round(deltaY),
+      time: Date.now()
+    });
+    
+    cursor.style.left = currentX + 'px';
+    cursor.style.top = currentY + 'px';
+    
+    touchpadInfo.innerHTML = `
+      移動: ${Math.round(deltaX)}, ${Math.round(deltaY)}<br>
+      モード: マウス
+    `;
+    
+    lastTouchX = currentX;
+    lastTouchY = currentY;
+  }
+});
 
-        thread::sleep(Duration::from_millis(POLL_INTERVAL_MS));
-    }
+touchpad.addEventListener('mouseup', () => {
+  cursor.classList.add('hidden');
+  touchpad.classList.remove('active');
+});
 
-    println!("\n統計: 実行コマンド数: {}", command_count);
-    println!("終了しました。");
-}
+// マウスボタン
+document.getElementById("left-click").onclick = () => {
+  send({ type: "mouse_click", button: "left", time: Date.now() });
+  log("左クリック");
+};
 
-fn handle_input(enigo: &mut Enigo, data: &InputData) {
-    match data.kind.as_str() {
-        "char" => {
-            if let Some(ref key_str) = data.key {
-                let _ = enigo.text(key_str);
-                println!("[{}] 入力: {}", timestamp(), key_str);
-            }
-        }
-        "text" => {
-            if let Some(ref text) = data.text {
-                let _ = enigo.text(text);
-                println!("[{}] テキスト: {}文字", timestamp(), text.len());
-            }
-        }
-        "enter" => {
-            let _ = enigo.key(Key::Return, Direction::Click);
-            println!("[{}] Enter", timestamp());
-        }
-        "backspace" => {
-            let count = data.count.unwrap_or(1);
-            for _ in 0..count {
-                let _ = enigo.key(Key::Backspace, Direction::Click);
-            }
-            println!("[{}] Backspace × {}", timestamp(), count);
-        }
-        "delete" => {
-            let _ = enigo.key(Key::Delete, Direction::Click);
-            println!("[{}] Delete", timestamp());
-        }
-        "tab" => {
-            let _ = enigo.key(Key::Tab, Direction::Click);
-            println!("[{}] Tab", timestamp());
-        }
-        "escape" => {
-            let _ = enigo.key(Key::Escape, Direction::Click);
-            println!("[{}] Escape", timestamp());
-        }
-        "ime" => {
-            let _ = enigo.key(Key::Alt, Direction::Press);
-            let _ = enigo.key(Key::Space, Direction::Click);
-            let _ = enigo.key(Key::Alt, Direction::Release);
-            println!("[{}] IME切替", timestamp());
-        }
-        "arrow_up" => {
-            let _ = enigo.key(Key::UpArrow, Direction::Click);
-            println!("[{}] ↑", timestamp());
-        }
-        "arrow_down" => {
-            let _ = enigo.key(Key::DownArrow, Direction::Click);
-            println!("[{}] ↓", timestamp());
-        }
-        "arrow_left" => {
-            let _ = enigo.key(Key::LeftArrow, Direction::Click);
-            println!("[{}] ←", timestamp());
-        }
-        "arrow_right" => {
-            let _ = enigo.key(Key::RightArrow, Direction::Click);
-            println!("[{}] →", timestamp());
-        }
-        "ctrl_c" => {
-            let _ = enigo.key(Key::Control, Direction::Press);
-            let _ = enigo.key(Key::Unicode('c'), Direction::Click);
-            let _ = enigo.key(Key::Control, Direction::Release);
-            println!("[{}] Ctrl+C", timestamp());
-        }
-        "ctrl_v" => {
-            let _ = enigo.key(Key::Control, Direction::Press);
-            let _ = enigo.key(Key::Unicode('v'), Direction::Click);
-            let _ = enigo.key(Key::Control, Direction::Release);
-            println!("[{}] Ctrl+V", timestamp());
-        }
-        "ctrl_x" => {
-            let _ = enigo.key(Key::Control, Direction::Press);
-            let _ = enigo.key(Key::Unicode('x'), Direction::Click);
-            let _ = enigo.key(Key::Control, Direction::Release);
-            println!("[{}] Ctrl+X", timestamp());
-        }
-        "ctrl_z" => {
-            let _ = enigo.key(Key::Control, Direction::Press);
-            let _ = enigo.key(Key::Unicode('z'), Direction::Click);
-            let _ = enigo.key(Key::Control, Direction::Release);
-            println!("[{}] Ctrl+Z", timestamp());
-        }
-        "ctrl_a" => {
-            let _ = enigo.key(Key::Control, Direction::Press);
-            let _ = enigo.key(Key::Unicode('a'), Direction::Click);
-            let _ = enigo.key(Key::Control, Direction::Release);
-            println!("[{}] Ctrl+A", timestamp());
-        }
-        "mouse_move_relative" => {
-            if let (Some(dx), Some(dy)) = (data.dx, data.dy) {
-                let _ = enigo.move_mouse(dx, dy, enigo::Coordinate::Rel);
-                println!("[{}] マウス相対移動: ({}, {})", timestamp(), dx, dy);
-            }
-        }
-        "mouse_click" => {
-            let button = match data.button.as_deref() {
-                Some("left") => Button::Left,
-                Some("right") => Button::Right,
-                Some("middle") => Button::Middle,
-                _ => Button::Left,
-            };
-            let _ = enigo.button(button, Direction::Click);
-            println!("[{}] クリック: {:?}", timestamp(), button);
-        }
-        "mouse_scroll" => {
-            if let Some(delta) = data.delta {
-                let _ = enigo.scroll(delta, Axis::Vertical);
-                println!("[{}] スクロール: {}", timestamp(), delta);
-            }
-        }
-        "clear_all" => {
-            let _ = enigo.key(Key::Control, Direction::Press);
-            let _ = enigo.key(Key::Unicode('a'), Direction::Click);
-            let _ = enigo.key(Key::Control, Direction::Release);
-            thread::sleep(Duration::from_millis(50));
-            let _ = enigo.key(Key::Backspace, Direction::Click);
-            println!("[{}] 全削除", timestamp());
-        }
-        _ => {
-            eprintln!("[{}] 不明: {}", timestamp(), data.kind);
-        }
-    }
-}
+document.getElementById("middle-click").onclick = () => {
+  send({ type: "mouse_click", button: "middle", time: Date.now() });
+  log("中央クリック");
+};
 
-fn timestamp() -> String {
-    Local::now().format("%H:%M:%S").to_string()
-}
+document.getElementById("right-click").onclick = () => {
+  send({ type: "mouse_click", button: "right", time: Date.now() });
+  log("右クリック");
+};
 
-fn current_timestamp() -> u64 {
-    std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .unwrap()
-        .as_millis() as u64
-}
+document.getElementById("double-click").onclick = async () => {
+  await send({ type: "mouse_click", button: "left", time: Date.now() });
+  await new Promise(r => setTimeout(r, 50));
+  await send({ type: "mouse_click", button: "left", time: Date.now() });
+  log("ダブルクリック");
+};
+
+document.getElementById("scroll-mode").onclick = function() {
+  isScrollMode = !isScrollMode;
+  this.style.background = isScrollMode 
+    ? 'linear-gradient(135deg, #fa709a 0%, #fee140 100%)' 
+    : '';
+  log(isScrollMode ? "スクロールモード ON" : "スクロールモード OFF");
+};
+
+// リアルタイム入力
+text.addEventListener("input", async (e) => {
+  if (mode.value !== "realtime" || !e.data) return;
+  
+  const success = await send({
+    type: "char",
+    key: e.data,
+    time: Date.now()
+  });
+  
+  if (success) {
+    charCount++;
+    charCountEl.textContent = charCount;
+    log(`入力: "${e.data}"`);
+  }
+});
+
+// 送信ボタン
+document.getElementById("send").onclick = async () => {
+  const content = text.value;
+  if (!content) return;
+
+  const success = await send({
+    type: "text",
+    text: content,
+    time: Date.now()
+  });
+  
+  if (success) {
+    charCount += content.length;
+    charCountEl.textContent = charCount;
+    text.value = "";
+    log(`✅ テキスト送信 (${content.length}文字)`);
+  }
+};
+
+// 基本キー
+document.getElementById("enter").onclick = () => send({ type: "enter", time: Date.now() }) && log("Enter");
+document.getElementById("tab").onclick = () => send({ type: "tab", time: Date.now() }) && log("Tab");
+document.getElementById("escape").onclick = () => send({ type: "escape", time: Date.now() }) && log("Escape");
+document.getElementById("back").onclick = () => send({ type: "backspace", time: Date.now() }) && log("Backspace");
+document.getElementById("delete").onclick = () => send({ type: "delete", time: Date.now() }) && log("Delete");
+document.getElementById("ime").onclick = () => send({ type: "ime", time: Date.now() }) && log("IME切替");
+
+// 矢印キー
+document.getElementById("arrow-up").onclick = () => send({ type: "arrow_up", time: Date.now() }) && log("↑");
+document.getElementById("arrow-down").onclick = () => send({ type: "arrow_down", time: Date.now() }) && log("↓");
+document.getElementById("arrow-left").onclick = () => send({ type: "arrow_left", time: Date.now() }) && log("←");
+document.getElementById("arrow-right").onclick = () => send({ type: "arrow_right", time: Date.now() }) && log("→");
+
+// ショートカット
+document.getElementById("ctrl-c").onclick = () => send({ type: "ctrl_c", time: Date.now() }) && log("Ctrl+C");
+document.getElementById("ctrl-v").onclick = () => send({ type: "ctrl_v", time: Date.now() }) && log("Ctrl+V");
+document.getElementById("ctrl-x").onclick = () => send({ type: "ctrl_x", time: Date.now() }) && log("Ctrl+X");
+document.getElementById("ctrl-z").onclick = () => send({ type: "ctrl_z", time: Date.now() }) && log("Ctrl+Z");
+document.getElementById("ctrl-a").onclick = () => send({ type: "ctrl_a", time: Date.now() }) && log("Ctrl+A");
+document.getElementById("clear").onclick = () => send({ type: "clear_all", time: Date.now() }) && log("全削除");
+
+// バッチ処理
+document.getElementById("batch-send").onclick = async () => {
+  const count = parseInt(document.getElementById("repeat-count").value);
+  const text = document.getElementById("repeat-text").value;
+  if (!text) return;
+
+  for (let i = 0; i < count; i++) {
+    await send({ type: "text", text, time: Date.now() });
+    await new Promise(r => setTimeout(r, 100));
+  }
+  log(`🔄 バッチ送信完了: ${count}回`);
+};
+
+// クイックコマンド
+document.getElementById("multi-back").onclick = () => send({ type: "backspace", count: 10, time: Date.now() }) && log("連続削除 × 10");
+document.getElementById("multi-enter").onclick = async () => {
+  for (let i = 0; i < 3; i++) {
+    await send({ type: "enter", time: Date.now() });
+    await new Promise(r => setTimeout(r, 100));
+  }
+  log("連続改行 × 3");
+};
+
+// ログ管理
+document.getElementById("clear-log").onclick = () => {
+  logBox.textContent = "";
+  log("ログクリア");
+};
+
+document.getElementById("export-log").onclick = () => {
+  const blob = new Blob([logBox.textContent], { type: "text/plain" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `log_${new Date().toISOString()}.txt`;
+  a.click();
+  log("ログをエクスポート");
+};
+
+// 接続時間更新
+setInterval(() => {
+  const elapsed = Math.floor((Date.now() - startTime) / 1000);
+  const minutes = Math.floor(elapsed / 60);
+  const seconds = elapsed % 60;
+  uptimeEl.textContent = `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+}, 1000);
+
+// 初期化
+log("🎹 Remote Keyboard Pro v2.0 起動");
+watchStatus();
+roomInput.addEventListener('change', watchStatus);
+</script>
+</body>
+</html>
