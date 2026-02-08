@@ -2,41 +2,307 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<title>Remote Keyboard</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>📱 Remote Keyboard Pro</title>
 <style>
-body { background:#111; color:#eee; font-family:sans-serif; padding:10px }
-textarea, input, button, select {
-  width:100%; margin:6px 0; padding:10px; font-size:16px;
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+  color: #eee;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  padding: 16px;
+  min-height: 100vh;
 }
-button { background:#333; color:#fff; border:none }
-pre { background:#000; height:160px; overflow:auto; padding:10px }
+.container {
+  max-width: 800px;
+  margin: 0 auto;
+}
+h1 {
+  text-align: center;
+  margin-bottom: 20px;
+  font-size: 28px;
+  background: linear-gradient(90deg, #4facfe 0%, #00f2fe 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+.card {
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 12px;
+  padding: 16px;
+  margin-bottom: 16px;
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+input, textarea, button, select {
+  width: 100%;
+  margin: 8px 0;
+  padding: 12px;
+  font-size: 16px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+input, textarea, select {
+  background: rgba(255, 255, 255, 0.1);
+  color: #eee;
+}
+input:focus, textarea:focus, select:focus {
+  outline: none;
+  border-color: #4facfe;
+  box-shadow: 0 0 0 3px rgba(79, 172, 254, 0.2);
+}
+button {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: #fff;
+  border: none;
+  cursor: pointer;
+  transition: all 0.3s;
+  font-weight: 600;
+}
+button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+}
+button:active {
+  transform: translateY(0);
+}
+button.primary { background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); }
+button.danger { background: linear-gradient(135deg, #fa709a 0%, #fee140 100%); }
+button.success { background: linear-gradient(135deg, #30cfd0 0%, #330867 100%); }
+button.small {
+  width: calc(50% - 4px);
+  display: inline-block;
+  padding: 10px;
+  font-size: 14px;
+}
+button.small:nth-child(even) { margin-left: 8px; }
+.grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+.grid button {
+  width: 100%;
+  margin: 0;
+}
+.status {
+  padding: 12px;
+  border-radius: 8px;
+  margin: 8px 0;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.status.online {
+  background: linear-gradient(135deg, rgba(0, 255, 127, 0.2) 0%, rgba(0, 200, 100, 0.2) 100%);
+  border: 1px solid rgba(0, 255, 127, 0.3);
+}
+.status.offline {
+  background: linear-gradient(135deg, rgba(255, 100, 100, 0.2) 0%, rgba(200, 0, 0, 0.2) 100%);
+  border: 1px solid rgba(255, 100, 100, 0.3);
+}
+.status-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #0f0;
+  animation: pulse 2s infinite;
+}
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+pre {
+  background: #000;
+  height: 200px;
+  overflow-y: auto;
+  padding: 12px;
+  border-radius: 8px;
+  font-size: 12px;
+  line-height: 1.6;
+  font-family: 'Courier New', monospace;
+}
+.stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  margin: 12px 0;
+}
+.stat-box {
+  background: rgba(79, 172, 254, 0.1);
+  padding: 12px;
+  border-radius: 8px;
+  text-align: center;
+}
+.stat-value {
+  font-size: 24px;
+  font-weight: bold;
+  color: #4facfe;
+}
+.stat-label {
+  font-size: 12px;
+  opacity: 0.7;
+  margin-top: 4px;
+}
+.tab-container {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+.tab {
+  flex: 1;
+  padding: 12px;
+  background: rgba(255, 255, 255, 0.05);
+  border: none;
+  border-radius: 8px;
+  color: #eee;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+.tab.active {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+.tab-content {
+  display: none;
+}
+.tab-content.active {
+  display: block;
+}
+.shortcuts {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+}
 </style>
 </head>
 <body>
+<div class="container">
+  <h1>📱 Remote Keyboard Pro v2.0</h1>
 
-<h2>📱 Remote Keyboard</h2>
+  <div class="card">
+    <input id="room" placeholder="Room ID" value="test">
+    <div id="status" class="status offline">
+      <div class="status-dot"></div>
+      <span>オフライン</span>
+    </div>
+  </div>
 
-<input id="room" placeholder="Room ID">
+  <div class="stats">
+    <div class="stat-box">
+      <div class="stat-value" id="sent-count">0</div>
+      <div class="stat-label">送信数</div>
+    </div>
+    <div class="stat-box">
+      <div class="stat-value" id="char-count">0</div>
+      <div class="stat-label">文字数</div>
+    </div>
+    <div class="stat-box">
+      <div class="stat-value" id="uptime">00:00</div>
+      <div class="stat-label">接続時間</div>
+    </div>
+  </div>
 
-<select id="mode">
-  <option value="realtime">リアルタイム入力</option>
-  <option value="enter">Enterで送信</option>
-</select>
+  <div class="tab-container">
+    <button class="tab active" data-tab="input">入力</button>
+    <button class="tab" data-tab="shortcuts">ショートカット</button>
+    <button class="tab" data-tab="mouse">マウス</button>
+    <button class="tab" data-tab="advanced">高度</button>
+  </div>
 
-<textarea id="text" placeholder="ここに入力"></textarea>
+  <!-- 入力タブ -->
+  <div class="tab-content active" id="input-tab">
+    <div class="card">
+      <select id="mode">
+        <option value="realtime">リアルタイム入力</option>
+        <option value="enter">Enterで送信</option>
+      </select>
+      <textarea id="text" rows="5" placeholder="ここに入力してください"></textarea>
+      <button id="send" class="primary">📤 送信</button>
+    </div>
 
-<button id="send">送信</button>
-<button id="enter">Enter（改行）</button>
-<button id="back">削除</button>
-<button id="ime">全角 / 半角</button>
+    <div class="card">
+      <div class="grid">
+        <button id="enter">⏎ Enter</button>
+        <button id="tab">⇥ Tab</button>
+        <button id="escape">⎋ Esc</button>
+        <button id="back" class="danger">⌫ Back</button>
+        <button id="delete" class="danger">⌦ Del</button>
+        <button id="ime">🌐 IME</button>
+      </div>
+    </div>
 
-<pre id="log"></pre>
+    <div class="card">
+      <h3 style="margin-bottom: 12px;">矢印キー</h3>
+      <div class="grid">
+        <div></div>
+        <button id="arrow-up">↑</button>
+        <div></div>
+        <button id="arrow-left">←</button>
+        <button id="arrow-down">↓</button>
+        <button id="arrow-right">→</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ショートカットタブ -->
+  <div class="tab-content" id="shortcuts-tab">
+    <div class="card">
+      <div class="shortcuts">
+        <button id="ctrl-c">📋 コピー (Ctrl+C)</button>
+        <button id="ctrl-v">📄 貼付 (Ctrl+V)</button>
+        <button id="ctrl-x">✂️ 切取 (Ctrl+X)</button>
+        <button id="ctrl-z">↩️ 戻す (Ctrl+Z)</button>
+        <button id="ctrl-a">🔘 全選択 (Ctrl+A)</button>
+        <button id="clear" class="danger">🗑️ 全削除</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- マウスタブ -->
+  <div class="tab-content" id="mouse-tab">
+    <div class="card">
+      <h3 style="margin-bottom: 12px;">マウス制御</h3>
+      <div style="margin: 12px 0;">
+        <label>X座標: <span id="mouse-x-display">0</span></label>
+        <input type="range" id="mouse-x" min="0" max="1920" value="960" style="margin-top: 8px;">
+      </div>
+      <div style="margin: 12px 0;">
+        <label>Y座標: <span id="mouse-y-display">0</span></label>
+        <input type="range" id="mouse-y" min="0" max="1080" value="540" style="margin-top: 8px;">
+      </div>
+      <button id="mouse-move" class="primary">🖱️ マウス移動</button>
+      <button id="mouse-click" class="success">👆 クリック</button>
+    </div>
+  </div>
+
+  <!-- 高度タブ -->
+  <div class="tab-content" id="advanced-tab">
+    <div class="card">
+      <h3 style="margin-bottom: 12px;">バッチ処理</h3>
+      <input type="number" id="repeat-count" placeholder="繰り返し回数" value="1" min="1" max="100">
+      <input type="text" id="repeat-text" placeholder="繰り返すテキスト">
+      <button id="batch-send" class="primary">🔄 バッチ送信</button>
+    </div>
+
+    <div class="card">
+      <h3 style="margin-bottom: 12px;">クイックコマンド</h3>
+      <button id="multi-back">⌫ × 10 削除</button>
+      <button id="multi-enter">⏎ × 3 改行</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <pre id="log"></pre>
+    <button id="clear-log" class="small danger">ログクリア</button>
+    <button id="export-log" class="small">ログ出力</button>
+  </div>
+</div>
 
 <script type="module">
-import { initializeApp } from "https://www.gstatic.com/firebasejs/12.8.0/firebase-app.js";
-import { getDatabase, ref, set } from
-  "https://www.gstatic.com/firebasejs/12.8.0/firebase-database.js";
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+import { getDatabase, ref, set, onValue } from
+  "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyB3QCa8l8X9LQwZVyrYlOw4bQeP1C0QMnU",
@@ -49,53 +315,202 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 
+// DOM要素
 const logBox = document.getElementById("log");
 const text = document.getElementById("text");
 const mode = document.getElementById("mode");
 const roomInput = document.getElementById("room");
+const statusEl = document.getElementById("status");
+const sentCountEl = document.getElementById("sent-count");
+const charCountEl = document.getElementById("char-count");
+const uptimeEl = document.getElementById("uptime");
 
-function log(m){
-  logBox.textContent += m + "\n";
+// 統計
+let sentCount = 0;
+let charCount = 0;
+let startTime = Date.now();
+
+// タブ切替
+document.querySelectorAll('.tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+    tab.classList.add('active');
+    document.getElementById(tab.dataset.tab + '-tab').classList.add('active');
+  });
+});
+
+// ログ関数
+function log(message) {
+  const timestamp = new Date().toLocaleTimeString();
+  logBox.textContent += `[${timestamp}] ${message}\n`;
   logBox.scrollTop = logBox.scrollHeight;
 }
 
-async function send(data){
+// ステータス監視
+function watchStatus() {
   const room = roomInput.value.trim();
-  if(!room) return alert("Room ID 入れて");
-  await set(ref(db, `rooms/${room}/input`), data);
+  if (!room) return;
+
+  const statusRef = ref(db, `rooms/${room}/status`);
+  onValue(statusRef, (snapshot) => {
+    const data = snapshot.val();
+    if (data && data.online) {
+      const timeDiff = Date.now() - data.last_seen;
+      const isOnline = timeDiff < 10000;
+      
+      statusEl.className = `status ${isOnline ? 'online' : 'offline'}`;
+      statusEl.innerHTML = `
+        <div class="status-dot"></div>
+        <span>${isOnline ? 'オンライン' : 'オフライン'} | v${data.version || '不明'}</span>
+      `;
+    }
+  });
 }
 
-text.addEventListener("input", async e => {
-  if(mode.value !== "realtime") return;
-  const v = e.data;
-  if(v){
-    await send({ type:"char", key:v, time:Date.now() });
-    log("送信: " + v);
+// 送信関数
+async function send(data) {
+  const room = roomInput.value.trim();
+  if (!room) {
+    alert("⚠️ Room ID を入力してください");
+    return false;
+  }
+
+  try {
+    await set(ref(db, `rooms/${room}/input`), data);
+    sentCount++;
+    sentCountEl.textContent = sentCount;
+    return true;
+  } catch (error) {
+    console.error("送信エラー:", error);
+    log(`❌ エラー: ${error.message}`);
+    return false;
+  }
+}
+
+// リアルタイム入力
+text.addEventListener("input", async (e) => {
+  if (mode.value !== "realtime" || !e.data) return;
+  
+  const success = await send({
+    type: "char",
+    key: e.data,
+    time: Date.now()
+  });
+  
+  if (success) {
+    charCount++;
+    charCountEl.textContent = charCount;
+    log(`入力: "${e.data}"`);
   }
 });
 
+// 送信ボタン
 document.getElementById("send").onclick = async () => {
-  for(const ch of text.value){
-    await send({ type:"char", key:ch, time:Date.now() });
+  const content = text.value;
+  if (!content) return;
+
+  const success = await send({
+    type: "text",
+    text: content,
+    time: Date.now()
+  });
+  
+  if (success) {
+    charCount += content.length;
+    charCountEl.textContent = charCount;
+    text.value = "";
+    log(`✅ テキスト送信 (${content.length}文字)`);
   }
-  text.value="";
-  log("まとめ送信完了");
 };
 
-document.getElementById("enter").onclick = async () => {
-  await send({ type:"enter", time:Date.now() });
-  log("Enter");
+// 基本キー
+document.getElementById("enter").onclick = () => send({ type: "enter", time: Date.now() }) && log("Enter");
+document.getElementById("tab").onclick = () => send({ type: "tab", time: Date.now() }) && log("Tab");
+document.getElementById("escape").onclick = () => send({ type: "escape", time: Date.now() }) && log("Escape");
+document.getElementById("back").onclick = () => send({ type: "backspace", time: Date.now() }) && log("Backspace");
+document.getElementById("delete").onclick = () => send({ type: "delete", time: Date.now() }) && log("Delete");
+document.getElementById("ime").onclick = () => send({ type: "ime", time: Date.now() }) && log("IME切替");
+
+// 矢印キー
+document.getElementById("arrow-up").onclick = () => send({ type: "arrow_up", time: Date.now() }) && log("↑");
+document.getElementById("arrow-down").onclick = () => send({ type: "arrow_down", time: Date.now() }) && log("↓");
+document.getElementById("arrow-left").onclick = () => send({ type: "arrow_left", time: Date.now() }) && log("←");
+document.getElementById("arrow-right").onclick = () => send({ type: "arrow_right", time: Date.now() }) && log("→");
+
+// ショートカット
+document.getElementById("ctrl-c").onclick = () => send({ type: "ctrl_c", time: Date.now() }) && log("Ctrl+C");
+document.getElementById("ctrl-v").onclick = () => send({ type: "ctrl_v", time: Date.now() }) && log("Ctrl+V");
+document.getElementById("ctrl-x").onclick = () => send({ type: "ctrl_x", time: Date.now() }) && log("Ctrl+X");
+document.getElementById("ctrl-z").onclick = () => send({ type: "ctrl_z", time: Date.now() }) && log("Ctrl+Z");
+document.getElementById("ctrl-a").onclick = () => send({ type: "ctrl_a", time: Date.now() }) && log("Ctrl+A");
+document.getElementById("clear").onclick = () => send({ type: "clear_all", time: Date.now() }) && log("全削除");
+
+// マウス
+document.getElementById("mouse-x").oninput = (e) => {
+  document.getElementById("mouse-x-display").textContent = e.target.value;
+};
+document.getElementById("mouse-y").oninput = (e) => {
+  document.getElementById("mouse-y-display").textContent = e.target.value;
+};
+document.getElementById("mouse-move").onclick = () => {
+  const x = parseInt(document.getElementById("mouse-x").value);
+  const y = parseInt(document.getElementById("mouse-y").value);
+  send({ type: "mouse_move", x, y, time: Date.now() }) && log(`マウス移動: (${x}, ${y})`);
+};
+document.getElementById("mouse-click").onclick = () => send({ type: "mouse_click", time: Date.now() }) && log("クリック");
+
+// バッチ処理
+document.getElementById("batch-send").onclick = async () => {
+  const count = parseInt(document.getElementById("repeat-count").value);
+  const text = document.getElementById("repeat-text").value;
+  if (!text) return;
+
+  for (let i = 0; i < count; i++) {
+    await send({ type: "text", text, time: Date.now() });
+    await new Promise(r => setTimeout(r, 100));
+  }
+  log(`🔄 バッチ送信完了: ${count}回`);
 };
 
-document.getElementById("back").onclick = async () => {
-  await send({ type:"backspace", time:Date.now() });
-  log("Backspace");
+// クイックコマンド
+document.getElementById("multi-back").onclick = () => send({ type: "backspace", count: 10, time: Date.now() }) && log("連続削除 × 10");
+document.getElementById("multi-enter").onclick = async () => {
+  for (let i = 0; i < 3; i++) {
+    await send({ type: "enter", time: Date.now() });
+    await new Promise(r => setTimeout(r, 100));
+  }
+  log("連続改行 × 3");
 };
 
-document.getElementById("ime").onclick = async () => {
-  await send({ type:"ime", time:Date.now() });
-  log("IME切替");
+// ログ管理
+document.getElementById("clear-log").onclick = () => {
+  logBox.textContent = "";
+  log("ログクリア");
 };
+
+document.getElementById("export-log").onclick = () => {
+  const blob = new Blob([logBox.textContent], { type: "text/plain" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `log_${new Date().toISOString()}.txt`;
+  a.click();
+  log("ログをエクスポート");
+};
+
+// 接続時間更新
+setInterval(() => {
+  const elapsed = Math.floor((Date.now() - startTime) / 1000);
+  const minutes = Math.floor(elapsed / 60);
+  const seconds = elapsed % 60;
+  uptimeEl.textContent = `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+}, 1000);
+
+// 初期化
+log("🎹 Remote Keyboard Pro v2.0 起動");
+watchStatus();
+roomInput.addEventListener('change', watchStatus);
 </script>
 </body>
 </html>
