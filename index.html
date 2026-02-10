@@ -247,38 +247,11 @@ pre {
   font-weight: bold;
   color: #4facfe;
 }
-.scroll-zone {
-  position: absolute;
-  right: 0;
-  top: 0;
-  bottom: 0;
-  width: 60px;
-  background: linear-gradient(90deg, transparent 0%, rgba(79, 172, 254, 0.1) 100%);
-  border-left: 2px dashed rgba(79, 172, 254, 0.3);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 12px;
-  opacity: 0.5;
-  pointer-events: none;
-}
-.gesture-hint {
-  position: absolute;
-  bottom: 10px;
-  left: 50%;
-  transform: translateX(-50%);
-  background: rgba(0, 0, 0, 0.7);
-  padding: 6px 12px;
-  border-radius: 6px;
-  font-size: 11px;
-  opacity: 0.7;
-  pointer-events: none;
-}
 </style>
 </head>
 <body>
 <div class="container">
-  <h1>📱 Remote Keyboard Pro v2.0 Smooth</h1>
+  <h1>📱 Remote Keyboard Pro v2.3 Queue</h1>
 
   <div class="card">
     <input id="room" placeholder="Room ID" value="test">
@@ -294,8 +267,8 @@ pre {
       <div class="stat-label">送信数</div>
     </div>
     <div class="stat-box">
-      <div class="stat-value" id="char-count">0</div>
-      <div class="stat-label">文字数</div>
+      <div class="stat-value" id="queue-size">0</div>
+      <div class="stat-label">キューサイズ</div>
     </div>
     <div class="stat-box">
       <div class="stat-value" id="uptime">00:00</div>
@@ -362,7 +335,7 @@ pre {
   <!-- タッチパッドタブ -->
   <div class="tab-content" id="touchpad-tab">
     <div class="card">
-      <h3 style="margin-bottom: 12px;">🖱️ タッチパッド (改善版)</h3>
+      <h3 style="margin-bottom: 12px;">🖱️ タッチパッド (キュー方式)</h3>
       
       <div class="sensitivity-control">
         <label>
@@ -375,13 +348,7 @@ pre {
         <div class="touchpad-cursor hidden" id="cursor"></div>
         <div class="touchpad-info" id="touchpad-info">
           移動: 0, 0<br>
-          速度: 0
-        </div>
-        <div class="scroll-zone">
-          <span style="writing-mode: vertical-rl;">スクロール</span>
-        </div>
-        <div class="gesture-hint">
-          スワイプで移動 | 2本指でスクロール | タップでクリック
+          キュー: 0
         </div>
       </div>
 
@@ -423,7 +390,7 @@ pre {
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-import { getDatabase, ref, set, onValue } from
+import { getDatabase, ref, set, push, onValue } from
   "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 
 const firebaseConfig = {
@@ -444,7 +411,7 @@ const mode = document.getElementById("mode");
 const roomInput = document.getElementById("room");
 const statusEl = document.getElementById("status");
 const sentCountEl = document.getElementById("sent-count");
-const charCountEl = document.getElementById("char-count");
+const queueSizeEl = document.getElementById("queue-size");
 const uptimeEl = document.getElementById("uptime");
 
 // タッチパッド要素
@@ -456,14 +423,16 @@ const sensitivityValue = document.getElementById("sensitivity-value");
 
 // 統計
 let sentCount = 0;
-let charCount = 0;
 let startTime = Date.now();
+
+// マウス移動キュー
+let mouseMoveQueue = [];
+let isProcessingQueue = false;
 
 // タッチパッド状態
 let isScrollMode = false;
 let lastTouchX = 0;
 let lastTouchY = 0;
-let lastTouchTime = 0;
 let touchStartTime = 0;
 let velocity = 0;
 let lastTouches = 0;
@@ -526,7 +495,41 @@ async function send(data) {
   }
 }
 
-// タッチパッド機能 - 改善版（バッファリングなし、即座に送信）
+// マウス移動キュー処理
+function queueMouseMove(dx, dy) {
+  mouseMoveQueue.push({ dx, dy });
+  queueSizeEl.textContent = mouseMoveQueue.length;
+  
+  if (!isProcessingQueue) {
+    processMouseQueue();
+  }
+}
+
+async function processMouseQueue() {
+  if (mouseMoveQueue.length === 0) {
+    isProcessingQueue = false;
+    return;
+  }
+  
+  isProcessingQueue = true;
+  
+  // キューから次の移動を取得
+  const move = mouseMoveQueue.shift();
+  queueSizeEl.textContent = mouseMoveQueue.length;
+  
+  // 送信
+  await send({
+    type: "mouse_move_relative",
+    dx: move.dx,
+    dy: move.dy,
+    time: Date.now()
+  });
+  
+  // 次の処理（10ms後）
+  setTimeout(() => processMouseQueue(), 10);
+}
+
+// タッチパッド機能
 sensitivitySlider.oninput = (e) => {
   sensitivityValue.textContent = parseFloat(e.target.value).toFixed(1) + 'x';
 };
@@ -556,7 +559,7 @@ touchpad.addEventListener('touchmove', (e) => {
   const rect = touchpad.getBoundingClientRect();
   
   if (e.touches.length === 1 && !isScrollMode) {
-    // 1本指: マウス移動 - 即座に送信（閾値なし）
+    // 1本指: マウス移動 - キューに追加
     const touch = e.touches[0];
     const currentX = touch.clientX - rect.left;
     const currentY = touch.clientY - rect.top;
@@ -564,17 +567,11 @@ touchpad.addEventListener('touchmove', (e) => {
     const deltaX = (currentX - lastTouchX) * sensitivity;
     const deltaY = (currentY - lastTouchY) * sensitivity;
     
-    // 1px以上の移動があれば即座に送信
     if (Math.abs(deltaX) >= 1 || Math.abs(deltaY) >= 1) {
       const moveX = Math.round(deltaX);
       const moveY = Math.round(deltaY);
       
-      send({
-        type: "mouse_move_relative",
-        dx: moveX,
-        dy: moveY,
-        time: Date.now()
-      });
+      queueMouseMove(moveX, moveY);
     }
     
     const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
@@ -585,12 +582,11 @@ touchpad.addEventListener('touchmove', (e) => {
     
     touchpadInfo.innerHTML = `
       移動: ${Math.round(deltaX)}, ${Math.round(deltaY)}<br>
-      速度: ${Math.round(velocity)} | 感度: ${sensitivity.toFixed(1)}x
+      キュー: ${mouseMoveQueue.length}
     `;
     
     lastTouchX = currentX;
     lastTouchY = currentY;
-    lastTouchTime = Date.now();
     
   } else if (e.touches.length === 2 || isScrollMode) {
     // 2本指 or スクロールモード: スクロール
@@ -632,7 +628,7 @@ touchpad.addEventListener('touchend', (e) => {
   }, 100);
 });
 
-// マウス操作（PCの場合）- こちらも即座に送信
+// マウス操作（PCの場合）
 touchpad.addEventListener('mousedown', (e) => {
   const rect = touchpad.getBoundingClientRect();
   lastTouchX = e.clientX - rect.left;
@@ -654,14 +650,8 @@ touchpad.addEventListener('mousemove', (e) => {
     const deltaX = (currentX - lastTouchX) * sensitivity;
     const deltaY = (currentY - lastTouchY) * sensitivity;
     
-    // 即座に送信
     if (Math.abs(deltaX) >= 1 || Math.abs(deltaY) >= 1) {
-      send({
-        type: "mouse_move_relative",
-        dx: Math.round(deltaX),
-        dy: Math.round(deltaY),
-        time: Date.now()
-      });
+      queueMouseMove(Math.round(deltaX), Math.round(deltaY));
     }
     
     cursor.style.left = currentX + 'px';
@@ -669,7 +659,7 @@ touchpad.addEventListener('mousemove', (e) => {
     
     touchpadInfo.innerHTML = `
       移動: ${Math.round(deltaX)}, ${Math.round(deltaY)}<br>
-      モード: マウス | 感度: ${sensitivity.toFixed(1)}x
+      キュー: ${mouseMoveQueue.length}
     `;
     
     lastTouchX = currentX;
@@ -724,8 +714,6 @@ text.addEventListener("input", async (e) => {
   });
   
   if (success) {
-    charCount++;
-    charCountEl.textContent = charCount;
     log(`入力: "${e.data}"`);
   }
 });
@@ -742,8 +730,6 @@ document.getElementById("send").onclick = async () => {
   });
   
   if (success) {
-    charCount += content.length;
-    charCountEl.textContent = charCount;
     text.value = "";
     log(`✅ テキスト送信 (${content.length}文字)`);
   }
@@ -819,8 +805,7 @@ setInterval(() => {
 }, 1000);
 
 // 初期化
-log("🎹 Remote Keyboard Pro v2.0 Smooth 起動");
-log("✨ マウス移動の滑らかさを改善しました");
+log("🎹 Remote Keyboard Pro v2.3 Queue 起動");
 watchStatus();
 roomInput.addEventListener('change', watchStatus);
 </script>
