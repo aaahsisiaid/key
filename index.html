@@ -278,7 +278,7 @@ pre {
 </head>
 <body>
 <div class="container">
-  <h1>📱 Remote Keyboard Pro v2.0</h1>
+  <h1>📱 Remote Keyboard Pro v2.0 Smooth</h1>
 
   <div class="card">
     <input id="room" placeholder="Room ID" value="test">
@@ -362,13 +362,13 @@ pre {
   <!-- タッチパッドタブ -->
   <div class="tab-content" id="touchpad-tab">
     <div class="card">
-      <h3 style="margin-bottom: 12px;">🖱️ タッチパッド</h3>
+      <h3 style="margin-bottom: 12px;">🖱️ タッチパッド (改善版)</h3>
       
       <div class="sensitivity-control">
         <label>
-          感度: <span class="sensitivity-value" id="sensitivity-value">1.0x</span>
+          感度: <span class="sensitivity-value" id="sensitivity-value">2.0x</span>
         </label>
-        <input type="range" id="sensitivity" min="0.1" max="5" step="0.1" value="1.0">
+        <input type="range" id="sensitivity" min="0.1" max="5" step="0.1" value="2.0">
       </div>
 
       <div class="touchpad" id="touchpad">
@@ -526,10 +526,7 @@ async function send(data) {
   }
 }
 
-// タッチパッド機能
-let accumulatedDeltaX = 0;
-let accumulatedDeltaY = 0;
-
+// タッチパッド機能 - 改善版（バッファリングなし、即座に送信）
 sensitivitySlider.oninput = (e) => {
   sensitivityValue.textContent = parseFloat(e.target.value).toFixed(1) + 'x';
 };
@@ -559,7 +556,7 @@ touchpad.addEventListener('touchmove', (e) => {
   const rect = touchpad.getBoundingClientRect();
   
   if (e.touches.length === 1 && !isScrollMode) {
-    // 1本指: マウス移動
+    // 1本指: マウス移動 - 即座に送信（閾値なし）
     const touch = e.touches[0];
     const currentX = touch.clientX - rect.left;
     const currentY = touch.clientY - rect.top;
@@ -567,13 +564,10 @@ touchpad.addEventListener('touchmove', (e) => {
     const deltaX = (currentX - lastTouchX) * sensitivity;
     const deltaY = (currentY - lastTouchY) * sensitivity;
     
-    accumulatedDeltaX += deltaX;
-    accumulatedDeltaY += deltaY;
-    
-    // 一定量溜まったら送信
-    if (Math.abs(accumulatedDeltaX) >= 5 || Math.abs(accumulatedDeltaY) >= 5) {
-      const moveX = Math.round(accumulatedDeltaX);
-      const moveY = Math.round(accumulatedDeltaY);
+    // 1px以上の移動があれば即座に送信
+    if (Math.abs(deltaX) >= 1 || Math.abs(deltaY) >= 1) {
+      const moveX = Math.round(deltaX);
+      const moveY = Math.round(deltaY);
       
       send({
         type: "mouse_move_relative",
@@ -581,9 +575,6 @@ touchpad.addEventListener('touchmove', (e) => {
         dy: moveY,
         time: Date.now()
       });
-      
-      accumulatedDeltaX = 0;
-      accumulatedDeltaY = 0;
     }
     
     const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
@@ -594,7 +585,7 @@ touchpad.addEventListener('touchmove', (e) => {
     
     touchpadInfo.innerHTML = `
       移動: ${Math.round(deltaX)}, ${Math.round(deltaY)}<br>
-      速度: ${Math.round(velocity)}
+      速度: ${Math.round(velocity)} | 感度: ${sensitivity.toFixed(1)}x
     `;
     
     lastTouchX = currentX;
@@ -638,12 +629,10 @@ touchpad.addEventListener('touchend', (e) => {
     cursor.classList.add('hidden');
     touchpad.classList.remove('active');
     velocity = 0;
-    accumulatedDeltaX = 0;
-    accumulatedDeltaY = 0;
   }, 100);
 });
 
-// マウス操作（PCの場合）
+// マウス操作（PCの場合）- こちらも即座に送信
 touchpad.addEventListener('mousedown', (e) => {
   const rect = touchpad.getBoundingClientRect();
   lastTouchX = e.clientX - rect.left;
@@ -665,19 +654,22 @@ touchpad.addEventListener('mousemove', (e) => {
     const deltaX = (currentX - lastTouchX) * sensitivity;
     const deltaY = (currentY - lastTouchY) * sensitivity;
     
-    send({
-      type: "mouse_move_relative",
-      dx: Math.round(deltaX),
-      dy: Math.round(deltaY),
-      time: Date.now()
-    });
+    // 即座に送信
+    if (Math.abs(deltaX) >= 1 || Math.abs(deltaY) >= 1) {
+      send({
+        type: "mouse_move_relative",
+        dx: Math.round(deltaX),
+        dy: Math.round(deltaY),
+        time: Date.now()
+      });
+    }
     
     cursor.style.left = currentX + 'px';
     cursor.style.top = currentY + 'px';
     
     touchpadInfo.innerHTML = `
       移動: ${Math.round(deltaX)}, ${Math.round(deltaY)}<br>
-      モード: マウス
+      モード: マウス | 感度: ${sensitivity.toFixed(1)}x
     `;
     
     lastTouchX = currentX;
@@ -827,7 +819,8 @@ setInterval(() => {
 }, 1000);
 
 // 初期化
-log("🎹 Remote Keyboard Pro v2.0 起動");
+log("🎹 Remote Keyboard Pro v2.0 Smooth 起動");
+log("✨ マウス移動の滑らかさを改善しました");
 watchStatus();
 roomInput.addEventListener('change', watchStatus);
 </script>
