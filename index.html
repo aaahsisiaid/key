@@ -126,7 +126,7 @@ pre {
 }
 .stats {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(4, 1fr);
   gap: 12px;
   margin: 12px 0;
 }
@@ -145,6 +145,9 @@ pre {
   font-size: 12px;
   opacity: 0.7;
   margin-top: 4px;
+}
+.stat-box.warning .stat-value {
+  color: #fa709a;
 }
 .tab-container {
   display: flex;
@@ -290,7 +293,7 @@ pre {
 </head>
 <body>
 <div class="container">
-  <h1>📱 Remote Keyboard Pro v2.1</h1>
+  <h1>📱 Remote Keyboard Pro v2.2</h1>
 
   <div class="card">
     <input id="room" placeholder="Room ID" value="test">
@@ -308,6 +311,10 @@ pre {
     <div class="stat-box">
       <div class="stat-value" id="char-count">0</div>
       <div class="stat-label">文字数</div>
+    </div>
+    <div class="stat-box warning">
+      <div class="stat-value" id="queue-size">0</div>
+      <div class="stat-label">キュー</div>
     </div>
     <div class="stat-box">
       <div class="stat-value" id="uptime">00:00</div>
@@ -374,7 +381,7 @@ pre {
   <!-- タッチパッドタブ -->
   <div class="tab-content" id="touchpad-tab">
     <div class="card">
-      <h3 style="margin-bottom: 12px;">🖱️ タッチパッド (高速化版)</h3>
+      <h3 style="margin-bottom: 12px;">🖱️ タッチパッド (キュー方式)</h3>
       
       <div class="sensitivity-control">
         <label>
@@ -385,9 +392,9 @@ pre {
 
       <div class="sensitivity-control">
         <label>
-          更新頻度: <span class="sensitivity-value" id="fps-value">60 FPS</span>
+          更新頻度: <span class="sensitivity-value" id="rate-value">30 回/秒</span>
         </label>
-        <input type="range" id="fps-slider" min="30" max="120" step="10" value="60">
+        <input type="range" id="rate-slider" min="10" max="60" step="5" value="30">
       </div>
 
       <div class="touchpad" id="touchpad">
@@ -396,7 +403,7 @@ pre {
           移動: 0, 0<br>
           速度: 0
         </div>
-        <div class="fps-display" id="fps-display">0 FPS</div>
+        <div class="fps-display" id="fps-display">送信: 0/s</div>
         <div class="scroll-zone">
           <span style="writing-mode: vertical-rl;">スクロール</span>
         </div>
@@ -443,7 +450,7 @@ pre {
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-import { getDatabase, ref, set, onValue } from
+import { getDatabase, ref, push, onValue, onChildAdded, remove } from
   "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 
 const firebaseConfig = {
@@ -466,6 +473,7 @@ const statusEl = document.getElementById("status");
 const sentCountEl = document.getElementById("sent-count");
 const charCountEl = document.getElementById("char-count");
 const uptimeEl = document.getElementById("uptime");
+const queueSizeEl = document.getElementById("queue-size");
 
 // タッチパッド要素
 const touchpad = document.getElementById("touchpad");
@@ -473,16 +481,17 @@ const cursor = document.getElementById("cursor");
 const touchpadInfo = document.getElementById("touchpad-info");
 const sensitivitySlider = document.getElementById("sensitivity");
 const sensitivityValue = document.getElementById("sensitivity-value");
-const fpsSlider = document.getElementById("fps-slider");
-const fpsValue = document.getElementById("fps-value");
+const rateSlider = document.getElementById("rate-slider");
+const rateValue = document.getElementById("rate-value");
 const fpsDisplay = document.getElementById("fps-display");
 
 // 統計
 let sentCount = 0;
 let charCount = 0;
 let startTime = Date.now();
+let queueSize = 0;
 
-// タッチパッド状態 - 高速化版
+// タッチパッド状態
 let isScrollMode = false;
 let lastTouchX = 0;
 let lastTouchY = 0;
@@ -491,11 +500,10 @@ let velocity = 0;
 let lastTouches = 0;
 let isTracking = false;
 let pendingMouseDelta = { x: 0, y: 0 };
-let targetFPS = 60;
-let lastSendTime = 0;
-let actualFPS = 0;
-let frameCount = 0;
-let fpsCounterStart = Date.now();
+let targetRate = 30;
+let actualRate = 0;
+let sendCount = 0;
+let rateCounterStart = Date.now();
 
 // タブ切替
 document.querySelectorAll('.tab').forEach(tab => {
@@ -535,8 +543,8 @@ function watchStatus() {
   });
 }
 
-// 送信関数
-async function send(data) {
+// キュー送信関数（pushを使用）
+async function sendToQueue(data) {
   const room = roomInput.value.trim();
   if (!room) {
     alert("⚠️ Room ID を入力してください");
@@ -544,9 +552,22 @@ async function send(data) {
   }
 
   try {
-    await set(ref(db, `rooms/${room}/input`), data);
+    await push(ref(db, `rooms/${room}/queue`), data);
     sentCount++;
+    queueSize++;
     sentCountEl.textContent = sentCount;
+    queueSizeEl.textContent = queueSize;
+    
+    // 送信レート計測
+    sendCount++;
+    const now = Date.now();
+    if (now - rateCounterStart >= 1000) {
+      actualRate = sendCount;
+      fpsDisplay.textContent = `送信: ${actualRate}/s`;
+      sendCount = 0;
+      rateCounterStart = now;
+    }
+    
     return true;
   } catch (error) {
     console.error("送信エラー:", error);
@@ -555,10 +576,10 @@ async function send(data) {
   }
 }
 
-// FPS設定
-fpsSlider.oninput = (e) => {
-  targetFPS = parseInt(e.target.value);
-  fpsValue.textContent = `${targetFPS} FPS`;
+// レート設定
+rateSlider.oninput = (e) => {
+  targetRate = parseInt(e.target.value);
+  rateValue.textContent = `${targetRate} 回/秒`;
 };
 
 // 感度設定
@@ -566,7 +587,7 @@ sensitivitySlider.oninput = (e) => {
   sensitivityValue.textContent = parseFloat(e.target.value).toFixed(1) + 'x';
 };
 
-// マウス移動の定期送信ループ（高速化版）
+// マウス移動の定期送信ループ（キュー方式）
 function startMouseUpdateLoop() {
   let lastFrameTime = performance.now();
   
@@ -577,7 +598,7 @@ function startMouseUpdateLoop() {
     }
 
     const deltaTime = currentTime - lastFrameTime;
-    const targetInterval = 1000 / targetFPS;
+    const targetInterval = 1000 / targetRate;
 
     if (deltaTime >= targetInterval && (pendingMouseDelta.x !== 0 || pendingMouseDelta.y !== 0)) {
       const sensitivity = parseFloat(sensitivitySlider.value);
@@ -585,22 +606,12 @@ function startMouseUpdateLoop() {
       const moveY = Math.round(pendingMouseDelta.y * sensitivity);
 
       if (moveX !== 0 || moveY !== 0) {
-        send({
+        sendToQueue({
           type: "mouse_move_relative",
           dx: moveX,
           dy: moveY,
           time: Date.now()
         });
-
-        // FPS計測
-        frameCount++;
-        const now = Date.now();
-        if (now - fpsCounterStart >= 1000) {
-          actualFPS = frameCount;
-          fpsDisplay.textContent = `${actualFPS} FPS`;
-          frameCount = 0;
-          fpsCounterStart = now;
-        }
       }
 
       pendingMouseDelta.x = 0;
@@ -646,7 +657,6 @@ touchpad.addEventListener('touchmove', (e) => {
   const rect = touchpad.getBoundingClientRect();
   
   if (e.touches.length === 1 && !isScrollMode) {
-    // 1本指: マウス移動（蓄積のみ、送信は別ループで）
     const touch = e.touches[0];
     const currentX = touch.clientX - rect.left;
     const currentY = touch.clientY - rect.top;
@@ -654,7 +664,6 @@ touchpad.addEventListener('touchmove', (e) => {
     const deltaX = currentX - lastTouchX;
     const deltaY = currentY - lastTouchY;
     
-    // デルタを蓄積（送信は requestAnimationFrame で）
     pendingMouseDelta.x += deltaX;
     pendingMouseDelta.y += deltaY;
     
@@ -673,13 +682,12 @@ touchpad.addEventListener('touchmove', (e) => {
     lastTouchY = currentY;
     
   } else if (e.touches.length === 2 || isScrollMode) {
-    // 2本指 or スクロールモード: スクロール
     const touch = e.touches[0];
     const currentY = touch.clientY - rect.top;
     const deltaY = currentY - lastTouchY;
     
     if (Math.abs(deltaY) > 2) {
-      send({
+      sendToQueue({
         type: "mouse_scroll",
         delta: -Math.round(deltaY / 5),
         time: Date.now()
@@ -696,9 +704,8 @@ touchpad.addEventListener('touchend', (e) => {
   
   const touchDuration = Date.now() - touchStartTime;
   
-  // タップ検出（短時間タッチ）
   if (touchDuration < 200 && velocity < 10 && lastTouches === 1) {
-    send({
+    sendToQueue({
       type: "mouse_click",
       button: "left",
       time: Date.now()
@@ -715,7 +722,7 @@ touchpad.addEventListener('touchend', (e) => {
   }, 100);
 });
 
-// マウス操作（PCの場合）- 同様に高速化
+// マウス操作（PCの場合）
 touchpad.addEventListener('mousedown', (e) => {
   const rect = touchpad.getBoundingClientRect();
   lastTouchX = e.clientX - rect.left;
@@ -739,7 +746,6 @@ touchpad.addEventListener('mousemove', (e) => {
     const deltaX = currentX - lastTouchX;
     const deltaY = currentY - lastTouchY;
     
-    // デルタを蓄積
     pendingMouseDelta.x += deltaX;
     pendingMouseDelta.y += deltaY;
     
@@ -765,24 +771,24 @@ touchpad.addEventListener('mouseup', () => {
 
 // マウスボタン
 document.getElementById("left-click").onclick = () => {
-  send({ type: "mouse_click", button: "left", time: Date.now() });
+  sendToQueue({ type: "mouse_click", button: "left", time: Date.now() });
   log("左クリック");
 };
 
 document.getElementById("middle-click").onclick = () => {
-  send({ type: "mouse_click", button: "middle", time: Date.now() });
+  sendToQueue({ type: "mouse_click", button: "middle", time: Date.now() });
   log("中央クリック");
 };
 
 document.getElementById("right-click").onclick = () => {
-  send({ type: "mouse_click", button: "right", time: Date.now() });
+  sendToQueue({ type: "mouse_click", button: "right", time: Date.now() });
   log("右クリック");
 };
 
 document.getElementById("double-click").onclick = async () => {
-  await send({ type: "mouse_click", button: "left", time: Date.now() });
+  await sendToQueue({ type: "mouse_click", button: "left", time: Date.now() });
   await new Promise(r => setTimeout(r, 50));
-  await send({ type: "mouse_click", button: "left", time: Date.now() });
+  await sendToQueue({ type: "mouse_click", button: "left", time: Date.now() });
   log("ダブルクリック");
 };
 
@@ -798,7 +804,7 @@ document.getElementById("scroll-mode").onclick = function() {
 text.addEventListener("input", async (e) => {
   if (mode.value !== "realtime" || !e.data) return;
   
-  const success = await send({
+  const success = await sendToQueue({
     type: "char",
     key: e.data,
     time: Date.now()
@@ -816,7 +822,7 @@ document.getElementById("send").onclick = async () => {
   const content = text.value;
   if (!content) return;
 
-  const success = await send({
+  const success = await sendToQueue({
     type: "text",
     text: content,
     time: Date.now()
@@ -831,26 +837,26 @@ document.getElementById("send").onclick = async () => {
 };
 
 // 基本キー
-document.getElementById("enter").onclick = () => send({ type: "enter", time: Date.now() }) && log("Enter");
-document.getElementById("tab").onclick = () => send({ type: "tab", time: Date.now() }) && log("Tab");
-document.getElementById("escape").onclick = () => send({ type: "escape", time: Date.now() }) && log("Escape");
-document.getElementById("back").onclick = () => send({ type: "backspace", time: Date.now() }) && log("Backspace");
-document.getElementById("delete").onclick = () => send({ type: "delete", time: Date.now() }) && log("Delete");
-document.getElementById("ime").onclick = () => send({ type: "ime", time: Date.now() }) && log("IME切替");
+document.getElementById("enter").onclick = () => sendToQueue({ type: "enter", time: Date.now() }) && log("Enter");
+document.getElementById("tab").onclick = () => sendToQueue({ type: "tab", time: Date.now() }) && log("Tab");
+document.getElementById("escape").onclick = () => sendToQueue({ type: "escape", time: Date.now() }) && log("Escape");
+document.getElementById("back").onclick = () => sendToQueue({ type: "backspace", time: Date.now() }) && log("Backspace");
+document.getElementById("delete").onclick = () => sendToQueue({ type: "delete", time: Date.now() }) && log("Delete");
+document.getElementById("ime").onclick = () => sendToQueue({ type: "ime", time: Date.now() }) && log("IME切替");
 
 // 矢印キー
-document.getElementById("arrow-up").onclick = () => send({ type: "arrow_up", time: Date.now() }) && log("↑");
-document.getElementById("arrow-down").onclick = () => send({ type: "arrow_down", time: Date.now() }) && log("↓");
-document.getElementById("arrow-left").onclick = () => send({ type: "arrow_left", time: Date.now() }) && log("←");
-document.getElementById("arrow-right").onclick = () => send({ type: "arrow_right", time: Date.now() }) && log("→");
+document.getElementById("arrow-up").onclick = () => sendToQueue({ type: "arrow_up", time: Date.now() }) && log("↑");
+document.getElementById("arrow-down").onclick = () => sendToQueue({ type: "arrow_down", time: Date.now() }) && log("↓");
+document.getElementById("arrow-left").onclick = () => sendToQueue({ type: "arrow_left", time: Date.now() }) && log("←");
+document.getElementById("arrow-right").onclick = () => sendToQueue({ type: "arrow_right", time: Date.now() }) && log("→");
 
 // ショートカット
-document.getElementById("ctrl-c").onclick = () => send({ type: "ctrl_c", time: Date.now() }) && log("Ctrl+C");
-document.getElementById("ctrl-v").onclick = () => send({ type: "ctrl_v", time: Date.now() }) && log("Ctrl+V");
-document.getElementById("ctrl-x").onclick = () => send({ type: "ctrl_x", time: Date.now() }) && log("Ctrl+X");
-document.getElementById("ctrl-z").onclick = () => send({ type: "ctrl_z", time: Date.now() }) && log("Ctrl+Z");
-document.getElementById("ctrl-a").onclick = () => send({ type: "ctrl_a", time: Date.now() }) && log("Ctrl+A");
-document.getElementById("clear").onclick = () => send({ type: "clear_all", time: Date.now() }) && log("全削除");
+document.getElementById("ctrl-c").onclick = () => sendToQueue({ type: "ctrl_c", time: Date.now() }) && log("Ctrl+C");
+document.getElementById("ctrl-v").onclick = () => sendToQueue({ type: "ctrl_v", time: Date.now() }) && log("Ctrl+V");
+document.getElementById("ctrl-x").onclick = () => sendToQueue({ type: "ctrl_x", time: Date.now() }) && log("Ctrl+X");
+document.getElementById("ctrl-z").onclick = () => sendToQueue({ type: "ctrl_z", time: Date.now() }) && log("Ctrl+Z");
+document.getElementById("ctrl-a").onclick = () => sendToQueue({ type: "ctrl_a", time: Date.now() }) && log("Ctrl+A");
+document.getElementById("clear").onclick = () => sendToQueue({ type: "clear_all", time: Date.now() }) && log("全削除");
 
 // バッチ処理
 document.getElementById("batch-send").onclick = async () => {
@@ -859,17 +865,17 @@ document.getElementById("batch-send").onclick = async () => {
   if (!text) return;
 
   for (let i = 0; i < count; i++) {
-    await send({ type: "text", text, time: Date.now() });
+    await sendToQueue({ type: "text", text, time: Date.now() });
     await new Promise(r => setTimeout(r, 100));
   }
   log(`🔄 バッチ送信完了: ${count}回`);
 };
 
 // クイックコマンド
-document.getElementById("multi-back").onclick = () => send({ type: "backspace", count: 10, time: Date.now() }) && log("連続削除 × 10");
+document.getElementById("multi-back").onclick = () => sendToQueue({ type: "backspace", count: 10, time: Date.now() }) && log("連続削除 × 10");
 document.getElementById("multi-enter").onclick = async () => {
   for (let i = 0; i < 3; i++) {
-    await send({ type: "enter", time: Date.now() });
+    await sendToQueue({ type: "enter", time: Date.now() });
     await new Promise(r => setTimeout(r, 100));
   }
   log("連続改行 × 3");
@@ -900,8 +906,8 @@ setInterval(() => {
 }, 1000);
 
 // 初期化
-log("🎹 Remote Keyboard Pro v2.1 起動（高速化版）");
-log(`デフォルト: ${targetFPS} FPS, 感度 ${sensitivitySlider.value}x`);
+log("🎹 Remote Keyboard Pro v2.2 起動（キュー方式）");
+log(`デフォルト: ${targetRate} 回/秒, 感度 ${sensitivitySlider.value}x`);
 watchStatus();
 roomInput.addEventListener('change', watchStatus);
 </script>
