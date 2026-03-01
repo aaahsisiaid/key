@@ -293,7 +293,7 @@ pre {
 </head>
 <body>
 <div class="container">
-  <h1>📱 Remote Keyboard Pro v2.2</h1>
+  <h1>📱 Remote Keyboard Pro v2.7</h1>
 
   <div class="card">
     <input id="room" placeholder="Room ID" value="test">
@@ -385,16 +385,16 @@ pre {
       
       <div class="sensitivity-control">
         <label>
-          感度: <span class="sensitivity-value" id="sensitivity-value">1.5x</span>
+          感度: <span class="sensitivity-value" id="sensitivity-value">0.8x</span>
         </label>
-        <input type="range" id="sensitivity" min="0.5" max="5" step="0.1" value="1.5">
+        <input type="range" id="sensitivity" min="0.1" max="3" step="0.1" value="0.8">
       </div>
 
       <div class="sensitivity-control">
         <label>
-          更新頻度: <span class="sensitivity-value" id="rate-value">30 回/秒</span>
+          更新頻度: <span class="sensitivity-value" id="rate-value">60 回/秒</span>
         </label>
-        <input type="range" id="rate-slider" min="10" max="60" step="5" value="30">
+        <input type="range" id="rate-slider" min="30" max="120" step="10" value="60">
       </div>
 
       <div class="touchpad" id="touchpad">
@@ -500,7 +500,7 @@ let velocity = 0;
 let lastTouches = 0;
 let isTracking = false;
 let pendingMouseDelta = { x: 0, y: 0 };
-let targetRate = 30;
+let targetRate = 60;
 let actualRate = 0;
 let sendCount = 0;
 let rateCounterStart = Date.now();
@@ -906,7 +906,7 @@ setInterval(() => {
 }, 1000);
 
 // 初期化
-log("🎹 Remote Keyboard Pro v2.2 起動（キュー方式）");
+log("🎹 Remote Keyboard Pro v2.7 起動（超精密版）");
 log(`デフォルト: ${targetRate} 回/秒, 感度 ${sensitivitySlider.value}x`);
 watchStatus();
 roomInput.addEventListener('change', watchStatus);
