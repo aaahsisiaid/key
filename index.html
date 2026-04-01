@@ -11,7 +11,6 @@
   --accent:#7fffb2;
   --accent2:#ff7f50;
   --surface:#111118;
-  --surface2:#18181f;
   --border:#252535;
   --text:#d8d8e8;
   --muted:#44445a;
@@ -23,219 +22,131 @@
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;touch-action:manipulation;}
 html,body{height:100%;overflow:hidden;}
 body{
-  background:var(--bg);
-  color:var(--text);
-  font-family:var(--app-font);
-  display:flex;
-  flex-direction:column;
-  height:100dvh;
-  user-select:none;
-  -webkit-user-select:none;
+  background:var(--bg);color:var(--text);font-family:var(--app-font);
+  display:flex;flex-direction:column;height:100dvh;
+  user-select:none;-webkit-user-select:none;
 }
 
-/* ── TITLEBAR ── */
 .titlebar{
-  background:var(--surface);
-  border-bottom:1px solid var(--border);
-  padding:0 14px;
-  height:40px;
-  display:flex;
-  align-items:center;
-  gap:10px;
-  flex-shrink:0;
+  background:var(--surface);border-bottom:1px solid var(--border);
+  padding:0 14px;height:40px;
+  display:flex;align-items:center;gap:10px;flex-shrink:0;
 }
 .traffic{display:flex;gap:6px;align-items:center;}
-.traffic span{
-  width:11px;height:11px;border-radius:50%;cursor:pointer;
-  display:flex;align-items:center;justify-content:center;
-}
-.t-r{background:#ff5f57;} .t-y{background:#ffbd2e;} .t-g{background:#28c840;}
-.bar-title{
-  font-size:10px;color:var(--muted);
-  letter-spacing:2px;flex:1;text-align:center;
-}
+.traffic span{width:11px;height:11px;border-radius:50%;}
+.t-r{background:#ff5f57;}.t-y{background:#ffbd2e;}.t-g{background:#28c840;}
+.bar-title{font-size:10px;color:var(--muted);letter-spacing:2px;flex:1;text-align:center;}
 .status{display:flex;align-items:center;gap:5px;font-size:9px;color:var(--muted);}
 .dot{width:6px;height:6px;border-radius:50%;background:var(--muted);transition:all .4s;}
 .dot.on{background:var(--accent);box-shadow:0 0 7px var(--accent);}
 
-/* ── MAIN ── */
 .main{
-  flex:1;min-height:0;
-  display:flex;flex-direction:column;
-  padding:8px 10px;
-  gap:7px;
-  overflow:hidden;
+  flex:1;min-height:0;display:flex;flex-direction:column;
+  padding:7px 10px 4px;gap:6px;overflow:hidden;
 }
 
 .lbl{
-  font-size:9px;color:var(--muted);
-  text-transform:uppercase;letter-spacing:2px;
-  margin-bottom:3px;
+  font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:2px;
+  margin-bottom:3px;display:flex;align-items:center;gap:6px;
 }
+.lbl-tag{
+  font-size:8px;background:var(--key-fn);color:var(--muted);
+  border:1px solid var(--border);border-radius:3px;padding:1px 5px;letter-spacing:1px;
+}
+.lbl-tag.active{background:var(--accent2);color:var(--bg);border-color:var(--accent2);}
+.lbl-tag.active-jp{background:var(--accent);color:var(--bg);border-color:var(--accent);}
 
-/* PC clipboard box */
-.pc-section{flex-shrink:0;}
-.pc-box{
-  background:var(--surface);
-  border:1px solid var(--border);
-  border-radius:6px;
-  padding:7px 10px;
-  font-size:12px;font-family:inherit;
-  color:var(--text);
-  height:62px;
-  overflow-y:auto;
-  white-space:pre-wrap;word-break:break-all;
-  transition:border-color .25s;
-  line-height:1.5;
-}
-.pc-box.flash{border-color:var(--accent);}
-.pc-placeholder{color:var(--muted);font-style:italic;font-size:11px;}
+.text-section{flex-shrink:0;}
+.text-row{display:flex;gap:6px;align-items:stretch;}
 
-/* Draft area */
-.draft-section{flex-shrink:0;}
-.draft-row{display:flex;gap:6px;align-items:stretch;}
-.draft-box{
-  flex:1;
-  background:var(--surface);
-  border:1px solid var(--accent);
-  border-radius:6px;
-  padding:7px 10px;
-  font-size:14px;font-family:inherit;
-  color:var(--accent);
-  min-height:42px;
-  white-space:pre-wrap;word-break:break-all;
-  line-height:1.5;
+.edit-box{
+  flex:1;background:var(--surface);border:1px solid var(--border);
+  border-radius:7px;padding:8px 11px;
+  font-size:13px;font-family:inherit;color:var(--text);
+  min-height:52px;max-height:72px;
+  overflow-y:auto;white-space:pre-wrap;word-break:break-all;line-height:1.6;
+  transition:border-color .2s,box-shadow .2s;cursor:text;
 }
-.draft-cursor{
-  display:inline-block;
-  width:2px;height:1em;
-  background:var(--accent);
-  vertical-align:text-bottom;
-  margin-left:1px;
-  animation:blink 1s step-end infinite;
-}
-.draft-pending{
-  color:var(--accent2);
-  text-decoration:underline;
-  text-decoration-style:dotted;
+.edit-box.focused{border-color:var(--accent2);box-shadow:0 0 0 2px rgba(255,127,80,.15);}
+.edit-box.flash{animation:flash-anim .35s ease;}
+@keyframes flash-anim{0%{border-color:var(--accent);}100%{border-color:var(--accent2);}}
+
+.ph{color:var(--muted);font-style:italic;font-size:11px;pointer-events:none;}
+.pending{color:var(--accent2);text-decoration:underline;text-decoration-style:dotted;}
+.cur{
+  display:inline-block;width:2px;height:1em;
+  background:var(--accent);vertical-align:text-bottom;
+  margin-left:1px;animation:blink 1s step-end infinite;
 }
 @keyframes blink{0%,100%{opacity:1}50%{opacity:0}}
 
-.send-btn{
-  background:var(--accent);
-  color:var(--bg);
-  border:none;border-radius:6px;
-  padding:0 14px;
-  font-family:inherit;font-size:11px;font-weight:700;
-  letter-spacing:1px;
-  cursor:pointer;flex-shrink:0;
-  transition:filter .15s;
+.side-btns{display:flex;flex-direction:column;gap:5px;}
+.side-btn{
+  background:var(--key-fn);border:1px solid var(--border);border-radius:6px;
+  color:var(--muted);font-family:inherit;font-size:10px;
+  padding:0 10px;height:23px;cursor:pointer;white-space:nowrap;transition:filter .12s;
 }
-.send-btn:active{filter:brightness(.8);}
+.send-btn{background:var(--accent);color:var(--bg);border-color:var(--accent);font-weight:700;letter-spacing:1px;}
+.send-btn:active,.clear-btn:active{filter:brightness(.8);}
 
-/* ── MODE BAR ── */
-.mode-bar{
-  display:flex;gap:5px;flex-shrink:0;
-}
+.mode-bar{display:flex;gap:5px;flex-shrink:0;}
 .mode-btn{
-  flex:1;
-  background:var(--key-fn);
-  border:1px solid var(--border);
-  border-radius:5px;
-  color:var(--muted);
-  font-family:inherit;font-size:11px;
-  padding:6px 0;
-  cursor:pointer;text-align:center;
-  transition:all .15s;
+  flex:1;background:var(--key-fn);border:1px solid var(--border);border-radius:5px;
+  color:var(--muted);font-family:inherit;font-size:11px;
+  padding:6px 0;cursor:pointer;text-align:center;transition:all .15s;
 }
-.mode-btn.active{
-  background:var(--accent2);
-  color:var(--bg);
-  border-color:var(--accent2);
-  font-weight:700;
-}
+.mode-btn.active{background:var(--accent2);color:var(--bg);border-color:var(--accent2);font-weight:700;}
 
-/* ── KEYBOARD ── */
-.keyboard{
-  display:flex;flex-direction:column;
-  gap:5px;
-  flex-shrink:0;
-  padding-bottom:max(env(safe-area-inset-bottom),6px);
-}
+.keyboard{display:flex;flex-direction:column;gap:5px;flex-shrink:0;padding-bottom:max(env(safe-area-inset-bottom),4px);}
 .kb-row{display:flex;gap:4px;justify-content:center;}
 
 .key{
-  background:var(--key-bg);
-  border:1px solid var(--border);
-  border-bottom:3px solid var(--key-shadow);
-  border-radius:7px;
-  color:var(--text);
-  font-family:inherit;
-  font-size:15px;
-  font-weight:700;
-  height:44px;
-  flex:1;
-  min-width:28px;
-  max-width:36px;
-  cursor:pointer;
-  display:flex;flex-direction:column;
-  align-items:center;justify-content:center;
-  gap:1px;
-  transition:background .06s;
-  position:relative;
+  background:var(--key-bg);border:1px solid var(--border);border-bottom:3px solid var(--key-shadow);
+  border-radius:7px;color:var(--text);font-family:inherit;font-size:16px;font-weight:700;
+  height:46px;flex:1;min-width:28px;max-width:37px;
+  cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;
+  position:relative;-webkit-tap-highlight-color:transparent;
 }
-.key.pressed,.key:active{
-  background:#222235;
-  border-bottom-width:1px;
-  transform:translateY(2px);
-}
-.key-main{font-size:15px;line-height:1;}
+.key.pressed{background:#222235;border-bottom-width:1px;transform:translateY(2px);}
+.key-main{font-size:16px;line-height:1;}
 .key-sub{font-size:8px;color:var(--accent);line-height:1;opacity:.9;}
 
-/* Special key widths */
-.key-fn{
-  background:var(--key-fn);
-  color:var(--muted);
-  font-size:11px;
-  max-width:52px;flex:1.4;
-}
-.key-shift{max-width:52px;flex:1.4;font-size:16px;color:var(--muted);}
+.key-fn{background:var(--key-fn);color:var(--muted);font-size:11px;max-width:54px;flex:1.5;}
+.key-shift{max-width:54px;flex:1.5;font-size:18px;color:var(--muted);}
 .key-shift.on{color:var(--accent);border-color:var(--accent);}
-.key-bs{max-width:52px;flex:1.4;font-size:16px;color:var(--accent2);}
-.key-space{flex:5;max-width:180px;background:var(--key-fn);font-size:11px;color:var(--muted);letter-spacing:1px;}
-.key-enter{flex:2;max-width:72px;font-size:15px;color:var(--accent);}
-.key-mode{flex:1.4;max-width:52px;background:var(--key-fn);font-size:10px;color:var(--muted);}
+.key-bs{max-width:54px;flex:1.5;font-size:18px;color:var(--accent2);}
+.key-space{flex:5;max-width:190px;background:var(--key-fn);font-size:11px;color:var(--muted);letter-spacing:1px;}
+.key-enter{flex:2;max-width:74px;background:var(--key-fn);font-size:15px;color:var(--accent);}
+.key-mode{flex:1.5;max-width:54px;background:var(--key-fn);font-size:10px;color:var(--muted);}
 </style>
 </head>
 <body>
-
 <div class="titlebar">
-  <div class="traffic">
-    <span class="t-r"></span>
-    <span class="t-y"></span>
-    <span class="t-g"></span>
-  </div>
+  <div class="traffic"><span class="t-r"></span><span class="t-y"></span><span class="t-g"></span></div>
   <div class="bar-title">REMOTE KB</div>
-  <div class="status">
-    <div class="dot" id="dot"></div>
-    <span id="statusTxt">--</span>
-  </div>
+  <div class="status"><div class="dot" id="dot"></div><span id="statusTxt">--</span></div>
 </div>
 
 <div class="main">
-
-  <div class="pc-section">
-    <div class="lbl">PC Clipboard</div>
-    <div class="pc-box" id="pcBox">
-      <span class="pc-placeholder">waiting for PC...</span>
+  <div class="text-section">
+    <div class="lbl">PC Clipboard <span class="lbl-tag" id="pcTag">tap to edit</span></div>
+    <div class="text-row">
+      <div class="edit-box" id="pcBox" data-target="pc"><span class="ph">waiting for PC...</span></div>
+      <div class="side-btns">
+        <button class="side-btn send-btn" id="pcSend">SEND</button>
+        <button class="side-btn" id="pcClr">CLR</button>
+      </div>
     </div>
   </div>
 
-  <div class="draft-section">
-    <div class="lbl">Draft</div>
-    <div class="draft-row">
-      <div class="draft-box" id="draftBox"></div>
-      <button class="send-btn" id="sendBtn">SEND</button>
+  <div class="text-section">
+    <div class="lbl">Draft <span class="lbl-tag active" id="draftTag">active</span></div>
+    <div class="text-row">
+      <div class="edit-box focused" id="draftBox" data-target="draft"><span class="cur"></span></div>
+      <div class="side-btns">
+        <button class="side-btn send-btn" id="draftSend">SEND</button>
+        <button class="side-btn" id="draftClr">CLR</button>
+      </div>
     </div>
   </div>
 
@@ -246,38 +157,36 @@ body{
   </div>
 
   <div class="keyboard" id="keyboard"></div>
-
 </div>
 
 <script>
-// ─── CONFIG ───────────────────────────────────
 const FB = 'https://key-board-ee542-default-rtdb.firebaseio.com/remote-kb';
 
-// ─── STATE ────────────────────────────────────
-let mode    = 'en';
-let shifted = false;
-let draft   = '';     // committed text
-let pending = '';     // romaji buffer (JP mode)
+let mode = 'en', shifted = false, focusTarget = 'draft';
+const S = {
+  pc:    { text:'', pending:'' },
+  draft: { text:'', pending:'' }
+};
 let lastPcText = null;
 
-// ─── ROMAJI TABLE ─────────────────────────────
+// ─── HEPBURN TABLE ────────────────────────────
 const RT = {
   'a':'あ','i':'い','u':'う','e':'え','o':'お',
   'ka':'か','ki':'き','ku':'く','ke':'け','ko':'こ',
-  'kya':'きゃ','kyi':'きぃ','kyu':'きゅ','kye':'きぇ','kyo':'きょ',
+  'kya':'きゃ','kyu':'きゅ','kyo':'きょ',
   'ga':'が','gi':'ぎ','gu':'ぐ','ge':'げ','go':'ご',
   'gya':'ぎゃ','gyu':'ぎゅ','gyo':'ぎょ',
-  'sa':'さ','si':'し','su':'す','se':'せ','so':'そ',
-  'shi':'し','sha':'しゃ','shu':'しゅ','she':'しぇ','sho':'しょ',
-  'za':'ざ','zi':'じ','zu':'ず','ze':'ぜ','zo':'ぞ',
-  'ja':'じゃ','ji':'じ','ju':'じゅ','je':'じぇ','jo':'じょ',
-  'ta':'た','ti':'ち','tu':'つ','te':'て','to':'と',
-  'chi':'ち','cha':'ちゃ','chu':'ちゅ','che':'ちぇ','cho':'ちょ',
-  'tsu':'つ','tya':'ちゃ','tyu':'ちゅ','tyo':'ちょ',
-  'da':'だ','di':'ぢ','du':'づ','de':'で','do':'ど',
+  'sa':'さ','su':'す','se':'せ','so':'そ',
+  'shi':'し','sha':'しゃ','shu':'しゅ','sho':'しょ','she':'しぇ',
+  'za':'ざ','zu':'ず','ze':'ぜ','zo':'ぞ',
+  'ji':'じ','ja':'じゃ','ju':'じゅ','jo':'じょ','je':'じぇ',
+  'ta':'た','te':'て','to':'と',
+  'chi':'ち','cha':'ちゃ','chu':'ちゅ','cho':'ちょ','che':'ちぇ',
+  'tsu':'つ',
+  'da':'だ','de':'で','do':'ど',
   'na':'な','ni':'に','nu':'ぬ','ne':'ね','no':'の',
   'nya':'にゃ','nyu':'にゅ','nyo':'にょ',
-  'ha':'は','hi':'ひ','hu':'ふ','he':'へ','ho':'ほ',
+  'ha':'は','hi':'ひ','he':'へ','ho':'ほ',
   'hya':'ひゃ','hyu':'ひゅ','hyo':'ひょ',
   'fu':'ふ','fa':'ふぁ','fi':'ふぃ','fe':'ふぇ','fo':'ふぉ',
   'ba':'ば','bi':'び','bu':'ぶ','be':'べ','bo':'ぼ',
@@ -289,73 +198,108 @@ const RT = {
   'ya':'や','yu':'ゆ','yo':'よ',
   'ra':'ら','ri':'り','ru':'る','re':'れ','ro':'ろ',
   'rya':'りゃ','ryu':'りゅ','ryo':'りょ',
-  'la':'ら','li':'り','lu':'る','le':'れ','lo':'ろ',
-  'wa':'わ','wi':'うぃ','we':'うぇ','wo':'を',
-  'n':'ん','nn':'ん',
+  'wa':'わ','wo':'を',
+  'nn':'ん',
   'xa':'ぁ','xi':'ぃ','xu':'ぅ','xe':'ぇ','xo':'ぉ',
   'xtu':'っ','xtsu':'っ','xya':'ゃ','xyu':'ゅ','xyo':'ょ',
-  'wha':'うぁ','who':'うぉ',
   'va':'ゔぁ','vi':'ゔぃ','vu':'ゔ','ve':'ゔぇ','vo':'ゔぉ',
 };
+const RTKEYS = Object.keys(RT);
+function isPrefix(s){ return RTKEYS.some(k => k.startsWith(s) && k.length > s.length); }
 
-const RT_KEYS = Object.keys(RT);
-function isPrefix(s){ return RT_KEYS.some(k => k.startsWith(s) && k.length > s.length); }
-
-function processRomaji(ch){
-  const buf = pending + ch;
-
-  // Exact match
-  if(RT[buf]){
-    draft += RT[buf];
-    pending = '';
-    return;
-  }
-
-  // Still a valid prefix
-  if(isPrefix(buf)){
-    // 'n' + consonant that's not aiueony → emit ん, restart with ch
-    if(pending === 'n' && !'aiueony'.includes(ch)){
-      draft += 'ん';
-      pending = ch;
-      if(RT[ch]){ draft += RT[ch]; pending = ''; }
-      return;
-    }
-    // double consonant → っ
-    if(pending.length === 1 && pending === ch && !'aiueon'.includes(ch)){
-      draft += 'っ';
-      pending = ch;
-      return;
-    }
-    pending = buf;
-    return;
-  }
-
-  // No match — flush pending, restart
-  if(pending){
-    draft += (pending === 'n') ? 'ん' : pending;
-    pending = '';
-  }
-  // Try ch alone
-  if(RT[ch]){ draft += RT[ch]; }
-  else if(isPrefix(ch)){ pending = ch; }
-  else { draft += ch; }
-}
-
-function commitPending(){
-  if(!pending) return;
-  draft += (RT[pending] ?? (pending === 'n' ? 'ん' : pending));
-  pending = '';
-}
-
-// ─── KEYBOARD LAYOUT ──────────────────────────
-// JP hints (first kana for that consonant row)
 const JP_HINT = {
-  q:'く',w:'わ',e:'え',r:'ら',t:'た',y:'や',u:'う',i:'い',o:'お',p:'ぱ',
-  a:'あ',s:'さ',d:'だ',f:'ふ',g:'が',h:'は',j:'じ',k:'か',l:'ら',
-  z:'ざ',x:'ぁ',c:'ち',v:'ゔ',b:'ば',n:'な',m:'ま',
+  a:'あ',i:'い',u:'う',e:'え',o:'お',
+  k:'か',s:'し',t:'た',n:'な',h:'は',m:'ま',
+  y:'や',r:'ら',w:'わ',g:'が',z:'ざ',d:'だ',
+  b:'ば',p:'ぱ',f:'ふ',c:'ち',v:'ゔ',x:'ぁ',
 };
 
-const ROWS_MAIN = [
+// ─── ROMAJI ───────────────────────────────────
+function inputChar(t, ch) {
+  const s = S[t];
+  const p = s.pending;
+
+  // n-rule: n + consonant (not aiuoen) → ん
+  if (p === 'n' && ch !== 'n' && !'aiuoen'.includes(ch)) {
+    s.text += 'ん'; s.pending = '';
+    _input(s, ch); return;
+  }
+
+  _input(s, ch);
+}
+
+function _input(s, ch) {
+  const buf = s.pending + ch;
+
+  if (RT[buf]) { s.text += RT[buf]; s.pending = ''; return; }
+
+  if (isPrefix(buf)) {
+    // っ rule: same consonant doubled (not vowel/n)
+    if (s.pending.length === 1 && s.pending === ch && !'aiuoen'.includes(ch)) {
+      s.text += 'っ'; s.pending = ch; return;
+    }
+    s.pending = buf; return;
+  }
+
+  // flush pending (n stays as-is to collect next char)
+  if (s.pending && s.pending !== 'n') {
+    s.text += s.pending; s.pending = '';
+  } else if (s.pending === 'n') {
+    // leave n pending, try ch alone after
+    const old = s.pending; s.pending = '';
+    if (RT[ch]) { s.text += 'ん' + RT[ch]; return; }
+    if (isPrefix(ch)) { s.text += 'ん'; s.pending = ch; return; }
+    // ch is unrecognised — keep n pending, add ch as literal
+    s.pending = old; s.text += ch; return;
+  }
+
+  if (RT[ch]) { s.text += RT[ch]; }
+  else if (isPrefix(ch)) { s.pending = ch; }
+  else { s.text += ch; }
+}
+
+function commitPending(t) {
+  const s = S[t];
+  if (!s.pending) return;
+  s.text += s.pending === 'n' ? 'ん' : (RT[s.pending] ?? s.pending);
+  s.pending = '';
+}
+
+// ─── RENDER ───────────────────────────────────
+function esc(s){ return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+function renderBox(t) {
+  const el = document.getElementById(t === 'pc' ? 'pcBox' : 'draftBox');
+  const s = S[t], active = focusTarget === t;
+  let h = esc(s.text);
+  if (s.pending) h += `<span class="pending">${esc(s.pending)}</span>`;
+  if (active) h += '<span class="cur"></span>';
+  el.innerHTML = h || (active ? '<span class="cur"></span>' : '<span class="ph">empty</span>');
+}
+function renderAll(){ renderBox('pc'); renderBox('draft'); }
+
+// ─── FOCUS ────────────────────────────────────
+function setFocus(t) {
+  if (focusTarget === t) return;
+  // Clear the box we're leaving
+  S[focusTarget].text = ''; S[focusTarget].pending = '';
+  focusTarget = t;
+
+  const ipc = t === 'pc';
+  document.getElementById('pcBox').classList.toggle('focused', ipc);
+  document.getElementById('draftBox').classList.toggle('focused', !ipc);
+  document.getElementById('pcTag').textContent    = ipc ? 'active' : 'tap to edit';
+  document.getElementById('draftTag').textContent = !ipc ? 'active' : 'tap to edit';
+  document.getElementById('pcTag').className    = 'lbl-tag' + (ipc ? ' active' : '');
+  document.getElementById('draftTag').className = 'lbl-tag' + (!ipc ? ' active' : '');
+  renderAll();
+}
+
+document.getElementById('pcBox').addEventListener('pointerdown', e=>{ e.preventDefault(); setFocus('pc'); });
+document.getElementById('draftBox').addEventListener('pointerdown', e=>{ e.preventDefault(); setFocus('draft'); });
+
+// ─── KEYBOARD ─────────────────────────────────
+const ROWS = [
   ['q','w','e','r','t','y','u','i','o','p'],
   ['a','s','d','f','g','h','j','k','l'],
   ['SH','z','x','c','v','b','n','m','BS'],
@@ -368,201 +312,117 @@ const ROWS_NUM = [
   ['MODE','SP','EN'],
 ];
 
-function buildKeyboard(){
+function buildKB() {
   const kb = document.getElementById('keyboard');
   kb.innerHTML = '';
-  const rows = (mode === 'num') ? ROWS_NUM : ROWS_MAIN;
-
+  const rows = mode === 'num' ? ROWS_NUM : ROWS;
   rows.forEach(row => {
     const rowEl = document.createElement('div');
     rowEl.className = 'kb-row';
-
     row.forEach(k => {
       const el = document.createElement('div');
-      el.className = 'key';
-      el.dataset.k = k;
-
-      let main = k, sub = '', extraClass = '';
-
-      switch(k){
-        case 'SH':
-          main = '⇧'; extraClass = 'key-shift' + (shifted?' on':'');
-          break;
-        case 'BS':
-          main = '⌫'; extraClass = 'key-bs';
-          break;
-        case 'SP':
-          main = 'SPACE'; extraClass = 'key-space';
-          break;
-        case 'EN':
-          main = '↵'; extraClass = 'key-enter';
-          break;
-        case 'MODE':
-          main = mode==='en'?'JP':mode==='jp'?'123':'EN';
-          extraClass = 'key-mode key-fn';
-          break;
-        default:
-          if(mode === 'jp') sub = JP_HINT[k] || '';
-          if(shifted && mode !== 'num') main = k.toUpperCase();
+      let extra = 'key', main = k, sub = '';
+      if(k==='SH'){ main='⇧'; extra+=' key-shift'+(shifted?' on':''); }
+      else if(k==='BS'){ main='⌫'; extra+=' key-bs'; }
+      else if(k==='SP'){ main='SPACE'; extra+=' key-space key-fn'; }
+      else if(k==='EN'){ main='↵'; extra+=' key-enter'; }
+      else if(k==='MODE'){ main=mode==='en'?'JP':mode==='jp'?'123':'EN'; extra+=' key-mode key-fn'; }
+      else {
+        if(mode==='jp') sub=JP_HINT[k]||'';
+        if(shifted && mode!=='num') main=k.toUpperCase();
       }
-
-      el.className = 'key ' + extraClass;
-
-      const ms = document.createElement('span');
-      ms.className = 'key-main'; ms.textContent = main;
-      el.appendChild(ms);
-      if(sub){
-        const ss = document.createElement('span');
-        ss.className = 'key-sub'; ss.textContent = sub;
-        el.appendChild(ss);
-      }
-
-      el.addEventListener('pointerdown', e => { e.preventDefault(); onKey(k); });
+      el.className = extra; el.dataset.k = k;
+      const ms=document.createElement('span'); ms.className='key-main'; ms.textContent=main; el.appendChild(ms);
+      if(sub){ const ss=document.createElement('span'); ss.className='key-sub'; ss.textContent=sub; el.appendChild(ss); }
+      el.addEventListener('pointerdown', e=>{ e.preventDefault(); el.classList.add('pressed'); onKey(k); setTimeout(()=>el.classList.remove('pressed'),120); });
       rowEl.appendChild(el);
     });
-
     kb.appendChild(rowEl);
   });
 }
 
 // ─── KEY HANDLER ──────────────────────────────
-function onKey(k){
-  switch(k){
+function onKey(k) {
+  const s = S[focusTarget];
+  switch(k) {
     case 'BS':
-      if(pending){ pending = pending.slice(0,-1); }
-      else if(draft){ draft = draft.slice(0,-1); }
-      renderDraft();
-      // Also send backspace action to PC
-      fbPost({type:'backspace'});
+      if(s.pending){ s.pending=s.pending.slice(0,-1); renderAll(); }
+      else if(s.text){ s.text=s.text.slice(0,-1); renderAll(); fbPost({type:'backspace'}); }
       return;
-
-    case 'SH':
-      shifted = !shifted;
-      buildKeyboard();
-      return;
-
+    case 'SH': shifted=!shifted; buildKB(); return;
     case 'SP':
-      if(mode==='jp') commitPending();
-      draft += ' ';
-      renderDraft();
-      fbPost({type:'type_text',text:' '});
-      return;
-
-    case 'EN':
-      if(mode==='jp') commitPending();
-      if(draft){
-        fbPost({type:'type_text',text:draft});
-        draft = '';
-        renderDraft();
-      }
-      return;
-
-    case 'MODE': {
-      const cycle = {en:'jp',jp:'num',num:'en'};
-      mode = cycle[mode];
-      document.querySelectorAll('.mode-btn').forEach(b =>
-        b.classList.toggle('active', b.dataset.mode === mode)
-      );
-      pending = '';
-      buildKeyboard();
-      renderDraft();
-      return;
+      if(mode==='jp') commitPending(focusTarget);
+      s.text+=' '; renderAll(); fbPost({type:'type_text',text:' '}); return;
+    case 'EN': doSend(); return;
+    case 'MODE':{
+      const c={en:'jp',jp:'num',num:'en'}; mode=c[mode];
+      document.querySelectorAll('.mode-btn').forEach(b=>b.classList.toggle('active',b.dataset.mode===mode));
+      s.pending=''; buildKB(); renderAll(); return;
     }
   }
-
-  // Regular char
-  let ch = k;
-  if(shifted && mode !== 'num') ch = k.toUpperCase();
-  if(shifted){ shifted = false; buildKeyboard(); }
-
-  if(mode === 'jp'){
-    processRomaji(ch.toLowerCase());
-    renderDraft();
-    // In JP mode, send on each committed kana (draft grew)
-    // We only send in ENTER/SEND for JP to avoid partial commits
-  } else {
-    draft += ch;
-    renderDraft();
-    fbPost({type:'type_text',text:ch});
-  }
+  let ch=k;
+  if(shifted && mode!=='num') ch=k.toUpperCase();
+  if(shifted){ shifted=false; buildKB(); }
+  if(mode==='jp'){ inputChar(focusTarget,ch.toLowerCase()); renderAll(); }
+  else { s.text+=ch; renderAll(); fbPost({type:'type_text',text:ch}); }
 }
 
-// ─── RENDER ───────────────────────────────────
-function esc(s){ return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
-
-function renderDraft(){
-  const el = document.getElementById('draftBox');
-  let html = esc(draft);
-  if(pending) html += `<span class="draft-pending">${esc(pending)}</span>`;
-  html += '<span class="draft-cursor"></span>';
-  el.innerHTML = html;
+function doSend() {
+  if(mode==='jp') commitPending(focusTarget);
+  const s = S[focusTarget];
+  if(!s.text) return;
+  fbPost({type:'type_text', text:s.text});
+  s.text=''; s.pending=''; renderAll();
 }
 
 // ─── FIREBASE ─────────────────────────────────
-async function fbPost(action){
+async function fbPost(action) {
   try{
     await fetch(`${FB}/from_phone.json`,{
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({...action, ts:Date.now()})
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({...action,ts:Date.now()})
     });
-  }catch(e){console.warn('fbPost',e);}
+  }catch(e){ console.warn(e); }
 }
 
-async function pollPcText(){
+async function pollPcText() {
   try{
     const r = await fetch(`${FB}/pc_text.json`);
     const val = await r.json();
     if(val !== lastPcText){
       lastPcText = val;
-      const box = document.getElementById('pcBox');
-      if(val === null || val === ''){
-        box.innerHTML = '<span class="pc-placeholder">empty clipboard</span>';
-      } else {
-        box.textContent = val;
-        box.classList.add('flash');
-        setTimeout(()=>box.classList.remove('flash'), 400);
-      }
+      const text = (val===null||val==='') ? '' : val;
+      S.pc.text = text; S.pc.pending = '';
+      // PC clipboardが変わったらdraftも初期化
+      S.draft.text = ''; S.draft.pending = '';
+      document.getElementById('pcBox').classList.add('flash');
+      setTimeout(()=>document.getElementById('pcBox').classList.remove('flash'),400);
+      renderAll();
     }
     setStatus(true);
-  }catch(e){
-    setStatus(false);
-  }
+  }catch(e){ setStatus(false); }
 }
-
 function setStatus(ok){
-  document.getElementById('dot').classList.toggle('on', ok);
-  document.getElementById('statusTxt').textContent = ok ? 'LIVE' : 'ERR';
+  document.getElementById('dot').classList.toggle('on',ok);
+  document.getElementById('statusTxt').textContent=ok?'LIVE':'ERR';
 }
 
-// ─── SEND BUTTON ──────────────────────────────
-document.getElementById('sendBtn').addEventListener('click', ()=>{
-  if(mode==='jp') commitPending();
-  if(draft){
-    fbPost({type:'type_text',text:draft});
-    draft=''; pending='';
-    renderDraft();
-  }
-});
-
-// ─── MODE BUTTONS ─────────────────────────────
-document.querySelectorAll('.mode-btn').forEach(btn => {
-  btn.addEventListener('click', ()=>{
-    mode = btn.dataset.mode;
-    document.querySelectorAll('.mode-btn').forEach(b =>
-      b.classList.toggle('active', b === btn)
-    );
-    pending = '';
-    buildKeyboard();
-    renderDraft();
+// ─── BUTTONS ──────────────────────────────────
+document.getElementById('draftSend').addEventListener('pointerdown',e=>{e.preventDefault();focusTarget='draft';doSend();});
+document.getElementById('pcSend').addEventListener('pointerdown',e=>{e.preventDefault();focusTarget='pc';doSend();});
+document.getElementById('draftClr').addEventListener('pointerdown',e=>{e.preventDefault();S.draft.text='';S.draft.pending='';renderBox('draft');});
+document.getElementById('pcClr').addEventListener('pointerdown',e=>{e.preventDefault();S.pc.text='';S.pc.pending='';renderBox('pc');});
+document.querySelectorAll('.mode-btn').forEach(btn=>{
+  btn.addEventListener('pointerdown',e=>{
+    e.preventDefault();
+    mode=btn.dataset.mode;
+    document.querySelectorAll('.mode-btn').forEach(b=>b.classList.toggle('active',b===btn));
+    S[focusTarget].pending=''; buildKB(); renderAll();
   });
 });
 
 // ─── INIT ─────────────────────────────────────
-buildKeyboard();
-renderDraft();
-pollPcText();
-setInterval(pollPcText, 500);
+buildKB(); renderAll(); pollPcText(); setInterval(pollPcText,500);
 </script>
 </body>
 </html>
