@@ -347,33 +347,42 @@ function onKey(k) {
   const s = S[focusTarget];
   switch(k) {
     case 'BS':
+      // バッファに文字があればローカルで削除のみ、なければPCにBackspace送信
       if(s.pending){ s.pending=s.pending.slice(0,-1); renderAll(); }
-      else if(s.text){ s.text=s.text.slice(0,-1); renderAll(); fbPost({type:'backspace'}); }
+      else if(s.text){ s.text=s.text.slice(0,-1); renderAll(); }
+      else { fbPost({type:'backspace'}); }
       return;
     case 'SH': shifted=!shifted; buildKB(); return;
     case 'SP':
+      // スペースはバッファに追加（送信しない）
       if(mode==='jp') commitPending(focusTarget);
-      s.text+=' '; renderAll(); fbPost({type:'type_text',text:' '}); return;
-    case 'EN': doSend(); return;
+      s.text+=' '; renderAll(); return;
+    case 'EN':
+      // テキスト送信 → その後Enterキーを送信
+      doSend(true); return;
     case 'MODE':{
       const c={en:'jp',jp:'num',num:'en'}; mode=c[mode];
       document.querySelectorAll('.mode-btn').forEach(b=>b.classList.toggle('active',b.dataset.mode===mode));
       s.pending=''; buildKB(); renderAll(); return;
     }
   }
+  // 通常文字はすべてバッファに蓄積、送信しない
   let ch=k;
   if(shifted && mode!=='num') ch=k.toUpperCase();
   if(shifted){ shifted=false; buildKB(); }
   if(mode==='jp'){ inputChar(focusTarget,ch.toLowerCase()); renderAll(); }
-  else { s.text+=ch; renderAll(); fbPost({type:'type_text',text:ch}); }
+  else { s.text+=ch; renderAll(); }
 }
 
-function doSend() {
+// withEnter=true のときはテキスト送信後にEnterも送る
+function doSend(withEnter=false) {
   if(mode==='jp') commitPending(focusTarget);
   const s = S[focusTarget];
-  if(!s.text) return;
-  fbPost({type:'type_text', text:s.text});
-  s.text=''; s.pending=''; renderAll();
+  if(s.text){
+    fbPost({type:'type_text', text:s.text});
+    s.text=''; s.pending=''; renderAll();
+  }
+  if(withEnter) fbPost({type:'enter'});
 }
 
 // ─── FIREBASE ─────────────────────────────────
@@ -386,31 +395,56 @@ async function fbPost(action) {
   }catch(e){ console.warn(e); }
 }
 
-async function pollPcText() {
-  try{
-    const r = await fetch(`${FB}/pc_text.json`);
-    const val = await r.json();
-    if(val !== lastPcText){
+// SSEストリーミングでpc_textをリアルタイム受信（ポーリング不要）
+function startSSE() {
+  const es = new EventSource(`${FB}/pc_text.json`);
+
+  es.addEventListener('put', e => {
+    try{
+      const data = JSON.parse(e.data);
+      const val = data.data;
+      if(val === lastPcText) return;
       lastPcText = val;
       const text = (val===null||val==='') ? '' : val;
       S.pc.text = text; S.pc.pending = '';
-      // PC clipboardが変わったらdraftも初期化
       S.draft.text = ''; S.draft.pending = '';
       document.getElementById('pcBox').classList.add('flash');
       setTimeout(()=>document.getElementById('pcBox').classList.remove('flash'),400);
       renderAll();
-    }
-    setStatus(true);
-  }catch(e){ setStatus(false); }
+      setStatus(true);
+    }catch(e){ console.warn('SSE parse error',e); }
+  });
+
+  es.addEventListener('patch', e => {
+    try{
+      const data = JSON.parse(e.data);
+      const val = data.data;
+      if(val === undefined || val === lastPcText) return;
+      lastPcText = val;
+      const text = (val===null||val==='') ? '' : val;
+      S.pc.text = text; S.pc.pending = '';
+      S.draft.text = ''; S.draft.pending = '';
+      renderAll();
+      setStatus(true);
+    }catch(e){}
+  });
+
+  es.onerror = () => {
+    setStatus(false);
+    // 切断されたら5秒後に再接続
+    es.close();
+    setTimeout(startSSE, 5000);
+  };
 }
+
 function setStatus(ok){
   document.getElementById('dot').classList.toggle('on',ok);
   document.getElementById('statusTxt').textContent=ok?'LIVE':'ERR';
 }
 
 // ─── BUTTONS ──────────────────────────────────
-document.getElementById('draftSend').addEventListener('pointerdown',e=>{e.preventDefault();focusTarget='draft';doSend();});
-document.getElementById('pcSend').addEventListener('pointerdown',e=>{e.preventDefault();focusTarget='pc';doSend();});
+document.getElementById('draftSend').addEventListener('pointerdown',e=>{e.preventDefault();focusTarget='draft';doSend(false);});
+document.getElementById('pcSend').addEventListener('pointerdown',e=>{e.preventDefault();focusTarget='pc';doSend(false);});
 document.getElementById('draftClr').addEventListener('pointerdown',e=>{e.preventDefault();S.draft.text='';S.draft.pending='';renderBox('draft');});
 document.getElementById('pcClr').addEventListener('pointerdown',e=>{e.preventDefault();S.pc.text='';S.pc.pending='';renderBox('pc');});
 document.querySelectorAll('.mode-btn').forEach(btn=>{
@@ -423,7 +457,7 @@ document.querySelectorAll('.mode-btn').forEach(btn=>{
 });
 
 // ─── INIT ─────────────────────────────────────
-buildKB(); renderAll(); pollPcText(); setInterval(pollPcText,500);
+buildKB(); renderAll(); startSSE();
 </script>
 </body>
 </html>
